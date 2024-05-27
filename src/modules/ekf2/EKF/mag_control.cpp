@@ -103,6 +103,60 @@ void Ekf::controlMagFusion()
 			_control_status.flags.synthetic_mag_z = false;
 		}
 
+<<<<<<< HEAD:src/modules/ekf2/EKF/mag_control.cpp
+=======
+		// reset flags
+		_fault_status.flags.bad_mag_x = false;
+		_fault_status.flags.bad_mag_y = false;
+		_fault_status.flags.bad_mag_z = false;
+
+
+		resetEstimatorAidStatus(aid_src);
+		aid_src.timestamp_sample = mag_sample.time_us;
+
+		// XYZ Measurement uncertainty. Need to consider timing errors for fast rotations
+		const float R_MAG = math::max(sq(_params.mag_noise), sq(0.01f));
+
+		// calculate intermediate variables used for X axis innovation variance, observation Jacobians and Kalman gains
+		Vector3f mag_innov;
+		Vector3f innov_var;
+
+		// Observation jacobian and Kalman gain vectors
+		VectorState H;
+		sym::ComputeMagInnovInnovVarAndHx(_state.vector(), P, mag_sample.mag, R_MAG, FLT_EPSILON, &mag_innov, &innov_var, &H);
+
+		for (int i = 0; i < 3; i++) {
+			aid_src.observation[i] = mag_sample.mag(i);
+			aid_src.observation_variance[i] = R_MAG;
+			aid_src.innovation[i] = mag_innov(i);
+			aid_src.innovation_variance[i] = innov_var(i);
+		}
+
+		const float innov_gate = math::max(_params.mag_innov_gate, 1.f);
+		setEstimatorAidStatusTestRatio(aid_src, innov_gate);
+
+		// Perform an innovation consistency check and report the result
+		_innov_check_fail_status.flags.reject_mag_x = (aid_src.test_ratio[0] > 1.f);
+		_innov_check_fail_status.flags.reject_mag_y = (aid_src.test_ratio[1] > 1.f);
+		_innov_check_fail_status.flags.reject_mag_z = (aid_src.test_ratio[2] > 1.f);
+
+		// determine if we should use mag fusion
+		bool continuing_conditions_passing = ((_params.mag_fusion_type == MagFuseType::INIT)
+						      || (_params.mag_fusion_type == MagFuseType::AUTO)
+						      || (_params.mag_fusion_type == MagFuseType::HEADING))
+						     && _control_status.flags.tilt_align
+						     && (_control_status.flags.yaw_align || (!_control_status.flags.ev_yaw && !_control_status.flags.yaw_align))
+						     && mag_sample.mag.longerThan(0.f)
+						     && mag_sample.mag.isAllFinite();
+
+		const bool starting_conditions_passing = continuing_conditions_passing
+				&& checkMagField(mag_sample.mag)
+				&& (_mag_counter > 3) // wait until we have more than a few samples through the filter
+				&& (_control_status.flags.yaw_align == _control_status_prev.flags.yaw_align) // no yaw alignment change this frame
+				&& (_state_reset_status.reset_count.quat == _state_reset_count_prev.quat) // don't allow starting on same frame as yaw reset
+				&& isNewestSampleRecent(_time_last_mag_buffer_push, MAG_MAX_INTERVAL);
+
+>>>>>>> 0a665a526c (ekf2: add mag type init):src/modules/ekf2/EKF/aid_sources/magnetometer/mag_control.cpp
 		checkMagHeadingConsistency(mag_sample);
 		controlMag3DFusion(mag_sample, starting_conditions_passing, _aid_src_mag);
 
