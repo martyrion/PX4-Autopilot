@@ -63,10 +63,6 @@ void DifferentialPosControl::updatePosControl()
 	updateSubscriptions();
 
 	if (_vehicle_control_mode.flag_control_position_enabled && _vehicle_control_mode.flag_armed && runSanityChecks()) {
-		if (_vehicle_control_mode.flag_control_offboard_enabled) {
-			generatePositionSetpoint();
-		}
-
 		generateVelocitySetpoint();
 
 	}
