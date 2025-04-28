@@ -60,37 +60,82 @@ void RoverAckermann::Run()
 	_dt = math::constrain(_timestamp - timestamp_prev, 1_ms, 5000_ms) * 1e-6f;
 
 	if (_parameter_update_sub.updated()) {
+		parameter_update_s param_update{};
+		_parameter_update_sub.copy(&param_update);
 		updateParams();
+		runSanityChecks();
 	}
 
-	vehicle_control_mode_s vehicle_control_mode{};
-	_vehicle_control_mode_sub.copy(&vehicle_control_mode);
+	if (_vehicle_control_mode_sub.updated()) {
+		vehicle_control_mode_s vehicle_control_mode{};
+		_vehicle_control_mode_sub.copy(&vehicle_control_mode);
+
+		// Run sanity checks if the control mode changes (Note: This has to be done this way, because the topic is periodically updated and not on changes)
+		if (vehicle_control_mode.flag_control_position_enabled != _vehicle_control_mode.flag_control_position_enabled ||
+		    vehicle_control_mode.flag_control_velocity_enabled != _vehicle_control_mode.flag_control_velocity_enabled ||
+		    vehicle_control_mode.flag_control_attitude_enabled != _vehicle_control_mode.flag_control_attitude_enabled ||
+		    vehicle_control_mode.flag_control_rates_enabled != _vehicle_control_mode.flag_control_rates_enabled) {
+			_vehicle_control_mode = vehicle_control_mode;
+			runSanityChecks();
+
+		} else {
+			_vehicle_control_mode = vehicle_control_mode;
+		}
+
+	}
+
+	if (_vehicle_status_sub.updated()) {
+		vehicle_status_s vehicle_status{};
+		_vehicle_status_sub.copy(&vehicle_status);
+
+		if (vehicle_status.nav_state != _nav_state) {
+			_ackermann_pos_control.reset();
+			_ackermann_vel_control.reset();
+			_ackermann_att_control.reset();
+			_ackermann_rate_control.reset();
+		}
+
+		_nav_state = vehicle_status.nav_state;
+	}
 
 	// Generate setpoints
 	bool actuator_control_enabled{true};
 
-	if (vehicle_control_mode.flag_control_manual_enabled) {
-		manualControl();
+	if (_vehicle_control_mode.flag_control_manual_enabled) {
+		manualControl(_nav_state);
 
-	} else if (vehicle_control_mode.flag_control_auto_enabled) {
+	} else if (_vehicle_control_mode.flag_control_auto_enabled) {
 		_ackermann_pos_control.autoPositionMode(_timestamp, _dt);
 
-	} else if (vehicle_control_mode.flag_control_offboard_enabled) {
+	} else if (_vehicle_control_mode.flag_control_offboard_enabled) {
 		actuator_control_enabled = offboardControl();
 	}
 
 	// Run controllers
-	updateControllers(vehicle_control_mode, actuator_control_enabled);
+	if (_vehicle_control_mode.flag_armed && _sanity_checks_passed) {
+		updateControllers(actuator_control_enabled);
 
+	} else { // Reset all controllers and stop motors
+		_ackermann_pos_control.reset();
+		_ackermann_vel_control.reset();
+		_ackermann_att_control.reset();
+		_ackermann_rate_control.reset();
+		actuator_motors_s actuator_motors{};
+		actuator_motors.reversible_flags = _param_r_rev.get();
+		actuator_motors.control[0] = 0.f;
+		actuator_motors.timestamp = _timestamp;
+		_actuator_motors_pub.publish(actuator_motors);
+		actuator_servos_s actuator_servos{};
+		actuator_servos.control[0] = 0.f;
+		actuator_servos.timestamp = _timestamp;
+		_actuator_servos_pub.publish(actuator_servos);
+	}
 
 }
 
-void RoverAckermann::manualControl()
+void RoverAckermann::manualControl(const int nav_state)
 {
-	vehicle_status_s vehicle_status{};
-	_vehicle_status_sub.copy(&vehicle_status);
-
-	switch (vehicle_status.nav_state) {
+	switch (nav_state) {
 	case vehicle_status_s::NAVIGATION_STATE_MANUAL:
 		_ackermann_act_control.manualMode();
 		break;
@@ -142,28 +187,52 @@ bool RoverAckermann::offboardControl()
 	return !offboard_control_mode.direct_actuator;
 }
 
-void RoverAckermann::updateControllers(vehicle_control_mode_s &vehicle_control_mode,
-				       const bool actuator_control_enabled)
+void RoverAckermann::updateControllers(const bool actuator_control_enabled)
 {
-	if (vehicle_control_mode.flag_control_position_enabled) {
+	if (_vehicle_control_mode.flag_control_position_enabled) {
 		_ackermann_pos_control.updatePosControl();
 	}
 
-	if (vehicle_control_mode.flag_control_velocity_enabled) {
+	if (_vehicle_control_mode.flag_control_velocity_enabled) {
 		_ackermann_vel_control.updateVelControl();
 	}
 
-	if (vehicle_control_mode.flag_control_attitude_enabled) {
+	if (_vehicle_control_mode.flag_control_attitude_enabled) {
 		_ackermann_att_control.updateAttControl();
 	}
 
-	if (vehicle_control_mode.flag_control_rates_enabled) {
+	if (_vehicle_control_mode.flag_control_rates_enabled) {
 		_ackermann_rate_control.updateRateControl();
 	}
 
 	if (actuator_control_enabled) {
 		_ackermann_act_control.updateActControl();
 	}
+}
+
+void RoverAckermann::runSanityChecks()
+{
+	if (_vehicle_control_mode.flag_control_rates_enabled && !_ackermann_rate_control.runSanityChecks()) {
+		_sanity_checks_passed = false;
+		return;
+	}
+
+	if (_vehicle_control_mode.flag_control_attitude_enabled && !_ackermann_att_control.runSanityChecks()) {
+		_sanity_checks_passed = false;
+		return;
+	}
+
+	if (_vehicle_control_mode.flag_control_velocity_enabled && !_ackermann_vel_control.runSanityChecks()) {
+		_sanity_checks_passed = false;
+		return;
+	}
+
+	if (_vehicle_control_mode.flag_control_position_enabled && !_ackermann_pos_control.runSanityChecks()) {
+		_sanity_checks_passed = false;
+		return;
+	}
+
+	_sanity_checks_passed = true;
 }
 
 int RoverAckermann::task_spawn(int argc, char *argv[])

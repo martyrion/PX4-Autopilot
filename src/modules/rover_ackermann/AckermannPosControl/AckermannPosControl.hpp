@@ -92,6 +92,20 @@ public:
 	 */
 	void autoPositionMode(hrt_abstime timestamp, float dt);
 
+	/**
+	 * @brief Check if the necessary parameters are set.
+	 * @return True if all checks pass.
+	 */
+	bool runSanityChecks();
+
+	/**
+	 * @brief Reset position controller.
+	 */
+	void reset()
+	{
+		_pos_ctl_course_direction = Vector2f(NAN, NAN);
+	};
+
 protected:
 	/**
 	 * @brief Update the parameters of the module.
@@ -148,12 +162,6 @@ private:
 				float distance_to_curr_wp, float acc_rad, float prev_acc_rad, float max_decel, float max_jerk, int curr_wp_type,
 				float waypoint_transition_angle, float prev_waypoint_transition_angle, float max_speed);
 
-	/**
-	 * @brief Check if the necessary parameters are set.
-	 * @return True if all checks pass.
-	 */
-	bool runSanityChecks();
-
 	// uORB subscriptions
 	uORB::Subscription _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
 	uORB::Subscription _manual_control_setpoint_sub{ORB_ID(manual_control_setpoint)};
@@ -181,8 +189,6 @@ private:
 	float _max_yaw_rate{0.f};
 	float _min_speed{0.f}; // Speed at which the maximum yaw rate limit is enforced given the maximum steer angle and wheel base.
 	int _curr_wp_type{position_setpoint_s::SETPOINT_TYPE_IDLE};
-	bool _course_control{false}; // Indicates if the rover is doing course control in manual position mode.
-	bool _prev_param_check_passed{true};
 
 	// Waypoint variables
 	Vector2f _curr_wp_ned{};

@@ -145,7 +145,7 @@ void AckermannPosControl::manualPositionMode(hrt_abstime timestamp, float dt)
 
 	if (fabsf(yaw_delta) > FLT_EPSILON
 	    || fabsf(speed_setpoint) < FLT_EPSILON) { // Closed loop yaw rate control
-		_course_control = false;
+		_pos_ctl_course_direction = Vector2f(NAN, NAN);
 		// Construct a 'target waypoint' for course control s.t. it is never within the maximum lookahead of the rover
 		const float yaw_setpoint = matrix::wrap_pi(_vehicle_yaw + sign(speed_setpoint) * yaw_delta);
 		const Vector2f pos_ctl_course_direction = Vector2f(cos(yaw_setpoint), sin(yaw_setpoint));
@@ -163,10 +163,9 @@ void AckermannPosControl::manualPositionMode(hrt_abstime timestamp, float dt)
 		_rover_position_setpoint_pub.publish(rover_position_setpoint);
 
 	} else { // Course control if the steering input is zero (keep driving on a straight line)
-		if (!_course_control) {
+		if (!_pos_ctl_course_direction.isAllFinite()) {
 			_pos_ctl_course_direction = Vector2f(cos(_vehicle_yaw), sin(_vehicle_yaw));
 			_pos_ctl_start_position_ned = _curr_pos_ned;
-			_course_control = true;
 		}
 
 		// Construct a 'target waypoint' for course control s.t. it is never within the maximum lookahead of the rover
@@ -367,6 +366,5 @@ bool AckermannPosControl::runSanityChecks()
 		ret = false;
 	}
 
-	_prev_param_check_passed = ret;
 	return ret;
 }

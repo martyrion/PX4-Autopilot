@@ -46,6 +46,8 @@
 // uORB includes
 #include <uORB/Subscription.hpp>
 #include <uORB/Publication.hpp>
+#include <uORB/topics/actuator_motors.h>
+#include <uORB/topics/actuator_servos.h>
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/vehicle_control_mode.h>
 #include <uORB/topics/vehicle_status.h>
@@ -93,21 +95,26 @@ private:
 
 	/**
 	 * @brief Handle manual control
+	 * @param nav_state Navigation state
 	 */
-	void manualControl();
+	void manualControl(int nav_state);
 
 	/**
 	 * @brief Handle offboard control
-	 * @return True if actuator control is handled through offboard
+	 * @return True if actuator control needs to be handled by the module
 	 */
 	bool offboardControl();
 
 	/**
 	 * @brief Update the controllers
-	 * @param vehicle_control_mode Vehicle control mode struct
-	 * @param actuator_control_enabled True if actuator control is enabled
+	 * @param actuator_control_enabled True if actuator control handled by the module
 	 */
-	void updateControllers(vehicle_control_mode_s &vehicle_control_mode, bool actuator_control_enabled);
+	void updateControllers(bool actuator_control_enabled);
+
+	/**
+	 * @brief Run sanity checks for the controllers
+	 */
+	void runSanityChecks();
 
 	// uORB subscriptions
 	uORB::Subscription _parameter_update_sub{ORB_ID(parameter_update)};
@@ -115,10 +122,13 @@ private:
 	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};
 	uORB::Subscription _offboard_control_mode_sub{ORB_ID(offboard_control_mode)};
 	uORB::Subscription _trajectory_setpoint_sub{ORB_ID(trajectory_setpoint)};
+	vehicle_control_mode_s _vehicle_control_mode{};
 
 	// uORB publications
 	uORB::Publication<ackermann_velocity_setpoint_s> _ackermann_velocity_setpoint_pub{ORB_ID(ackermann_velocity_setpoint)};
 	uORB::Publication<rover_position_setpoint_s> _rover_position_setpoint_pub{ORB_ID(rover_position_setpoint)};
+	uORB::Publication<actuator_motors_s> _actuator_motors_pub{ORB_ID(actuator_motors)};
+	uORB::Publication<actuator_servos_s> _actuator_servos_pub{ORB_ID(actuator_servos)};
 
 	// Class instances
 	AckermannActControl  _ackermann_act_control{this};
@@ -130,4 +140,11 @@ private:
 	// Variables
 	hrt_abstime _timestamp{0};
 	float _dt{0.f};
+	int _nav_state{0};
+	bool _sanity_checks_passed{true};
+
+	// Parameters
+	DEFINE_PARAMETERS(
+		(ParamInt<px4::params::CA_R_REV>) _param_r_rev
+	)
 };
