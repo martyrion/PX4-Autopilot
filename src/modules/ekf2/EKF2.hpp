@@ -157,6 +157,10 @@ public:
 
 private:
 
+	// Helper method to determine if this is a research instance
+	// Dimitris
+	bool isResearchInstance() const { return _instance == 1; }
+
 	static constexpr uint8_t MAX_NUM_IMUS = 4;
 	static constexpr uint8_t MAX_NUM_MAGS = 4;
 
@@ -500,6 +504,9 @@ private:
 		(ParamExtInt<px4::params::EKF2_PREDICT_US>) _param_ekf2_predict_us,
 		(ParamExtFloat<px4::params::EKF2_DELAY_MAX>) _param_ekf2_delay_max,
 		(ParamExtInt<px4::params::EKF2_IMU_CTRL>) _param_ekf2_imu_ctrl,
+
+		(ParamBool<px4::params::EKFR_EN>) _param_ekfr_en, /// Dimitris
+
 
 #if defined(CONFIG_EKF2_AUXVEL)
 		(ParamExtFloat<px4::params::EKF2_AVEL_DELAY>)
