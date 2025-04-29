@@ -417,6 +417,14 @@ void EKF2::Run()
 		// update parameters from storage
 		updateParams();
 
+		// Apply custom parameters for research instance
+		if (isResearchInstance()) {
+			_params->height_sensor_ref = _param_ekfr_hgt_ref.get();
+			_params->gnss_ctrl = _param_ekfr_gps_ctrl.get();
+
+			// If we have other research parameters, add them here
+		}
+
 		VerifyParams();
 
 #if defined(CONFIG_EKF2_GNSS)
