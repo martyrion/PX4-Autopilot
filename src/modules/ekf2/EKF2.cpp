@@ -79,6 +79,7 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_noaid_noise(_params->pos_noaid_noise),
 #if defined(CONFIG_EKF2_GNSS)
 	_param_ekf2_gps_ctrl(_params->gnss_ctrl),
+	_param_ekfr_gps_ctrl(_params->gnss_ctrl),
 	_param_ekf2_gps_delay(_params->gps_delay_ms),
 	_param_ekf2_gps_pos_x(_params->gps_pos_body(0)),
 	_param_ekf2_gps_pos_y(_params->gps_pos_body(1)),
@@ -142,6 +143,7 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_synthetic_mag_z(_params->synthesize_mag_z),
 #endif // CONFIG_EKF2_MAGNETOMETER
 	_param_ekf2_hgt_ref(_params->height_sensor_ref),
+	_param_ekfr_hgt_ref(_params->height_sensor_ref),
 	_param_ekf2_noaid_tout(_params->valid_timeout_max),
 #if defined(CONFIG_EKF2_TERRAIN) || defined(CONFIG_EKF2_OPTICAL_FLOW) || defined(CONFIG_EKF2_RANGE_FINDER)
 	_param_ekf2_min_rng(_params->rng_gnd_clearance),
