@@ -7,6 +7,11 @@ parameters:
         short: EKF2 enable
       type: boolean
       default: 1
+    EKFR_EN:
+      description:
+        short: EKFR enable (Dimitris)
+      type: boolean
+      default: 1
     EKF2_PREDICT_US:
       description:
         short: EKF prediction period
@@ -507,6 +512,22 @@ parameters:
         3: Vision
       default: 1
       reboot_required: true
+    EKFR_HGT_REF:
+      description:
+        short: Determines the reference source of height data used by the EKFR (Dimitris)
+        long: When multiple height sources are enabled at the same time, the height
+          estimate will always converge towards the reference height source selected
+          by this parameter. The range sensor and vision options should only be used
+          when for operation over a flat surface as the local NED origin will move
+          up and down with ground level.
+      type: enum
+      values:
+        0: Barometric pressure
+        1: GPS
+        2: Range sensor
+        3: Vision
+      default: 1
+      reboot_required: true
     EKF2_BARO_CTRL:
       description:
         short: Barometric sensor height aiding
@@ -532,6 +553,21 @@ parameters:
     EKF2_GPS_CTRL:
       description:
         short: GNSS sensor aiding
+        long: 'Set bits in the following positions to enable: 0 : Longitude and latitude
+          fusion 1 : Altitude fusion 2 : 3D velocity fusion 3 : Dual antenna heading
+          fusion'
+      type: bitmask
+      bit:
+        0: Lon/lat
+        1: Altitude
+        2: 3D velocity
+        3: Dual antenna heading
+      default: 7
+      min: 0
+      max: 15
+    EKFR_GPS_CTRL:
+      description:
+        short: GNSS sensor aiding (Dimitris)
         long: 'Set bits in the following positions to enable: 0 : Longitude and latitude
           fusion 1 : Altitude fusion 2 : 3D velocity fusion 3 : Dual antenna heading
           fusion'
