@@ -263,6 +263,7 @@ struct parameters {
 
 	// measurement source control
 	int32_t height_sensor_ref{static_cast<int32_t>(HeightSensor::BARO)};
+	int32_t height_sensor_ref_r{static_cast<int32_t>(HeightSensor::BARO)}; /// Dimitris
 	int32_t position_sensor_ref{static_cast<int32_t>(PositionSensor::GNSS)};
 
 	float delay_max_ms{110.f};              ///< maximum time delay of all the aiding sensors. Sets the size of the observation buffers. (mSec)
@@ -311,6 +312,7 @@ struct parameters {
 
 #if defined(CONFIG_EKF2_GNSS)
 	int32_t gnss_ctrl{static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)};
+	int32_t gnss_ctrl_r{static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)}; /// Dimitris
 	float gps_delay_ms{110.0f};             ///< GPS measurement delay relative to the IMU (mSec)
 
 	Vector3f gps_pos_body{};                ///< xyz position of the GPS antenna in body frame (m)

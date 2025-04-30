@@ -149,6 +149,8 @@ public:
 	static bool trylock_module() { return (pthread_mutex_trylock(&ekf2_module_mutex) == 0); }
 	static void unlock_module() { pthread_mutex_unlock(&ekf2_module_mutex); }
 
+	void setAsResearchInstance(bool val) { _force_research = val; } /// Dimitris
+
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
 	bool multi_init(int imu, int mag);
 #endif // CONFIG_EKF2_MULTI_INSTANCE
@@ -159,7 +161,9 @@ private:
 
 	// Helper method to determine if this is a research instance
 	// Dimitris
-	bool isResearchInstance() const { return _instance == 1; }
+	bool _force_research{false};
+
+	bool isResearchInstance() const { return _force_research || _instance == 1; }
 
 	static constexpr uint8_t MAX_NUM_IMUS = 4;
 	static constexpr uint8_t MAX_NUM_MAGS = 4;
