@@ -79,7 +79,8 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_noaid_noise(_params->pos_noaid_noise),
 #if defined(CONFIG_EKF2_GNSS)
 	_param_ekf2_gps_ctrl(_params->gnss_ctrl),
-	_param_ekfr_gps_ctrl(_params->gnss_ctrl_r),
+	_param_ekfr_gps_ctrl_1(_params->gnss_ctrl_r1), /// Dimitris
+	_param_ekfr_gps_ctrl_2(_params->gnss_ctrl_r2), /// Dimitris
 	_param_ekf2_gps_delay(_params->gps_delay_ms),
 	_param_ekf2_gps_pos_x(_params->gps_pos_body(0)),
 	_param_ekf2_gps_pos_y(_params->gps_pos_body(1)),
@@ -143,7 +144,8 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_synthetic_mag_z(_params->synthesize_mag_z),
 #endif // CONFIG_EKF2_MAGNETOMETER
 	_param_ekf2_hgt_ref(_params->height_sensor_ref),
-	_param_ekfr_hgt_ref(_params->height_sensor_ref_r),
+	_param_ekfr_hgt_ref_1(_params->height_sensor_ref_r1), /// Dimitris
+	_param_ekfr_hgt_ref_2(_params->height_sensor_ref_r2), /// Dimitris
 	_param_ekf2_noaid_tout(_params->valid_timeout_max),
 #if defined(CONFIG_EKF2_TERRAIN) || defined(CONFIG_EKF2_OPTICAL_FLOW) || defined(CONFIG_EKF2_RANGE_FINDER)
 	_param_ekf2_min_rng(_params->rng_gnd_clearance),
@@ -409,6 +411,15 @@ void EKF2::Run()
 		return;
 	}
 
+	// Debug logging - Dimitris
+	static bool debug_logged = false;
+
+	if (!debug_logged) {
+		PX4_INFO("Instance %d: isResearchInstance=%s, getResearchInstanceId=%d",
+			 _instance, isResearchInstance() ? "YES" : "NO", getResearchInstanceId());
+		debug_logged = true;
+	}
+
 	// check for parameter updates
 	if (_parameter_update_sub.updated() || !_callback_registered) {
 		// clear update
@@ -418,12 +429,36 @@ void EKF2::Run()
 		// update parameters from storage
 		updateParams();
 
-		// Apply custom parameters for research instance
-		if (isResearchInstance()) {
-			_params->height_sensor_ref = _param_ekfr_hgt_ref.get();
-			_params->gnss_ctrl = _param_ekfr_gps_ctrl.get();
 
-			// If we have other research parameters, add them here
+
+// Dimitris
+		if (isResearchInstance()) {
+			int research_id = getResearchInstanceId();
+
+			PX4_INFO("Research instance %d (ID %d): Applying custom parameters", _instance, research_id);
+
+			switch (research_id) {
+			case 0:
+				PX4_INFO("  Before: height_ref=%d, gnss_ctrl=%d",
+					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
+				_params->height_sensor_ref = _param_ekfr_hgt_ref_1.get();
+				_params->gnss_ctrl = _param_ekfr_gps_ctrl_1.get();
+				PX4_INFO("  After: height_ref=%d, gnss_ctrl=%d",
+					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
+				break;
+
+			case 1:
+				PX4_INFO("  Before: height_ref=%d, gnss_ctrl=%d",
+					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
+				_params->height_sensor_ref = _param_ekfr_hgt_ref_2.get();
+				_params->gnss_ctrl = _param_ekfr_gps_ctrl_2.get();
+				PX4_INFO("  After: height_ref=%d, gnss_ctrl=%d",
+					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
+				break;
+			}
+
+		} else {
+			PX4_INFO("Instance %d: Using standard parameters", _instance);
 		}
 
 		VerifyParams();
@@ -2705,6 +2740,129 @@ int EKF2::custom_command(int argc, char *argv[])
 {
 	return print_usage("unknown command");
 }
+#if defined(CONFIG_EKF2_MULTI_INSTANCE) // Dimitris - Helper function to create research instances
+
+// NOTE: Research mode with different magnetometers requires SENS_MAG_MODE=0
+// This enables proper magnetometer instance selection for multi-instance EKF
+bool EKF2::createResearchInstances(int num_research_instances, int default_imu_idx, int default_mag_idx)
+{
+	bool success = true;
+
+	PX4_INFO("Research mode enabled: creating %d research instances", num_research_instances);
+
+	// Get parameter values for primary instance
+	param_t param_ekfr_imu_primary = param_find("EKFR_IMU_PRIMARY");
+	param_t param_ekfr_mag_primary = param_find("EKFR_MAG_PRIMARY");
+
+	int32_t primary_imu_idx = default_imu_idx;  // default fallback
+	int32_t primary_mag_idx = default_mag_idx;  // default fallback
+
+	if (param_ekfr_imu_primary != PARAM_INVALID) {
+		param_get(param_ekfr_imu_primary, &primary_imu_idx);
+	}
+	if (param_ekfr_mag_primary != PARAM_INVALID) {
+		param_get(param_ekfr_mag_primary, &primary_mag_idx);
+	}
+
+	PX4_INFO("Primary instance will use IMU %d, MAG %d", (int)primary_imu_idx, (int)primary_mag_idx);
+
+	// Create primary instance
+	EKF2 *ekf2_primary = new EKF2(true, px4::ins_instance_to_wq(primary_imu_idx), false);
+
+	if (ekf2_primary && ekf2_primary->multi_init(primary_imu_idx, primary_mag_idx)) {
+		int primary_instance = ekf2_primary->instance();
+
+		if ((primary_instance >= 0) && (_objects[primary_instance].load() == nullptr)) {
+			_objects[primary_instance].store(ekf2_primary);
+			PX4_INFO("Primary instance %d created with IMU %d, MAG %d",
+				 primary_instance, (int)primary_imu_idx, (int)primary_mag_idx);
+
+			// Get parameter values for research instances
+			param_t param_ekfr_imu_1 = param_find("EKFR_IMU_1");
+			param_t param_ekfr_imu_2 = param_find("EKFR_IMU_2");
+			param_t param_ekfr_mag_1 = param_find("EKFR_MAG_1");
+			param_t param_ekfr_mag_2 = param_find("EKFR_MAG_2");
+
+			int32_t research_imu_indices[2] = {0, 0}; // default to IMU 0
+			int32_t research_mag_indices[2] = {0, 0}; // default to MAG 0
+
+			if (param_ekfr_imu_1 != PARAM_INVALID) {
+				param_get(param_ekfr_imu_1, &research_imu_indices[0]);
+			}
+			if (param_ekfr_imu_2 != PARAM_INVALID) {
+				param_get(param_ekfr_imu_2, &research_imu_indices[1]);
+			}
+			if (param_ekfr_mag_1 != PARAM_INVALID) {
+				param_get(param_ekfr_mag_1, &research_mag_indices[0]);
+			}
+			if (param_ekfr_mag_2 != PARAM_INVALID) {
+				param_get(param_ekfr_mag_2, &research_mag_indices[1]);
+			}
+
+			// Create research instances
+			for (int research_id = 0; research_id < num_research_instances; research_id++) {
+				int imu_idx = research_imu_indices[research_id];
+				int mag_idx = research_mag_indices[research_id];
+
+				PX4_INFO("Creating research instance %d with IMU %d, MAG %d",
+					 research_id, imu_idx, mag_idx);
+
+				EKF2 *ekf2_research = new EKF2(true, px4::ins_instance_to_wq(imu_idx), false);
+
+				if (ekf2_research) {
+					// Set research instance flag BEFORE multi_init()
+					ekf2_research->setAsResearchInstance(true, research_id);
+
+					if (ekf2_research->multi_init(imu_idx, mag_idx)) {
+						int research_instance = ekf2_research->instance();
+
+						if ((research_instance >= 0) && (_objects[research_instance].load() == nullptr)) {
+							_objects[research_instance].store(ekf2_research);
+							PX4_INFO("Research instance %d (research ID %d) created with IMU %d, MAG %d",
+								 research_instance, research_id, imu_idx, mag_idx);
+
+						} else {
+							PX4_ERR("Research instance numbering problem: %d", research_instance);
+							delete ekf2_research;
+							success = false;
+							break;
+						}
+
+					} else {
+						PX4_ERR("Failed to init research instance %d with IMU %d, MAG %d",
+							research_id, imu_idx, mag_idx);
+						delete ekf2_research;
+						success = false;
+						break;
+					}
+
+				} else {
+					PX4_ERR("Failed to allocate research instance %d", research_id);
+					success = false;
+					break;
+				}
+			}
+
+			if (success) {
+				_ekf2_selector.load()->ScheduleNow();
+			}
+
+		} else {
+			PX4_ERR("Primary instance numbering problem: %d", primary_instance);
+			delete ekf2_primary;
+			success = false;
+		}
+
+	} else {
+		PX4_ERR("Failed to init primary instance with IMU %d, MAG %d", (int)primary_imu_idx, (int)primary_mag_idx);
+		delete ekf2_primary;
+		success = false;
+	}
+
+	return success;
+}
+#endif // CONFIG_EKF2_MULTI_INSTANCE
+
 
 int EKF2::task_spawn(int argc, char *argv[])
 {
@@ -2718,6 +2876,9 @@ int EKF2::task_spawn(int argc, char *argv[])
 
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
 	bool multi_mode = false;
+
+	// Dimitris - best IMU instance = 1 (out of 3) and best RMI = 2
+	// TODO assign param to choose the instance
 	int32_t imu_instances = 0;
 	int32_t mag_instances = 0;
 
@@ -2796,60 +2957,21 @@ int EKF2::task_spawn(int argc, char *argv[])
 			}
 		}
 
-		// Research mode implementation - creates exactly two instances
-		if (ekfr_enabled == 1 && imu_instances > 0) {
-			PX4_INFO("Research mode enabled: creating two EKF2 instances");
 
-			// Use IMU 0 and MAG 0 for both instances
-			const uint8_t imu_idx = 0;
-			const uint8_t mag_idx = 0;
 
-			// Create primary instance
-			EKF2 *ekf2_primary = new EKF2(true, px4::ins_instance_to_wq(imu_idx), false);
+		// NOTE: Research mode with different magnetometers requires SENS_MAG_MODE=0
+		// This enables proper magnetometer instance selection for multi-instance EKF
 
-			if (ekf2_primary && ekf2_primary->multi_init(imu_idx, mag_idx)) {
-				int actual_instance = ekf2_primary->instance();
+		// Research mode implementation - Dimitris
+		if (ekfr_enabled > 0 && imu_instances > 0) {
+			const uint8_t default_imu_idx = 0;  // Fallback default
+			const uint8_t default_mag_idx = 0;  // Fallback default
 
-				if ((actual_instance >= 0) && (_objects[actual_instance].load() == nullptr)) {
-					_objects[actual_instance].store(ekf2_primary);
-					success = true;
-					PX4_INFO("Primary instance %d created with IMU %d, MAG %d",
-						 actual_instance, imu_idx, mag_idx);
-
-					// Create research instance using the same sensors
-					EKF2 *ekf2_research = new EKF2(true, px4::ins_instance_to_wq(imu_idx), false);
-
-					if (ekf2_research && ekf2_research->multi_init(imu_idx, mag_idx)) {
-						int research_instance = ekf2_research->instance();
-
-						if ((research_instance >= 0) && (_objects[research_instance].load() == nullptr)) {
-							_objects[research_instance].store(ekf2_research);
-							ekf2_research->setAsResearchInstance(true);
-							PX4_INFO("Research instance %d created with IMU %d, MAG %d",
-								 research_instance, imu_idx, mag_idx);
-							_ekf2_selector.load()->ScheduleNow();
-
-						} else {
-							PX4_ERR("Research instance numbering problem: %d", research_instance);
-							delete ekf2_research;
-						}
-
-					} else {
-						PX4_ERR("Failed to init research instance with IMU %d, MAG %d", imu_idx, mag_idx);
-						delete ekf2_research;
-					}
-
-				} else {
-					PX4_ERR("Primary instance numbering problem: %d", actual_instance);
-					delete ekf2_primary;
-				}
-
-			} else {
-				PX4_ERR("Failed to init primary instance with IMU %d, MAG %d", imu_idx, mag_idx);
-				delete ekf2_primary;
-			}
+			PX4_INFO("Creating %d research instances", (int)ekfr_enabled);
+			success = createResearchInstances(ekfr_enabled, default_imu_idx, default_mag_idx);
 
 		} else {
+			PX4_INFO("No research instances requested (ekfr_enabled=%d)", (int)ekfr_enabled);
 			const hrt_abstime time_started = hrt_absolute_time();
 			const int multi_instances = math::min(imu_instances * mag_instances, static_cast<int32_t>(EKF2_MAX_INSTANCES));
 			int multi_instances_allocated = 0;
