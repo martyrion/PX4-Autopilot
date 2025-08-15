@@ -774,6 +774,13 @@ GPS::run()
 		param_get(handle, &gnssSystemsParam);
 	}
 
+	handle = param_find("GPS_UBX_N_RATE");
+	int32_t gps_ubx_normal_rate = 0;
+
+	if (handle != PARAM_INVALID) {
+		param_get(handle, &gps_ubx_normal_rate);
+	}
+
 	initializeCommunicationDump();
 
 	uint64_t last_rate_measurement = hrt_absolute_time();
@@ -846,7 +853,7 @@ GPS::run()
 		/* FALLTHROUGH */
 		case gps_driver_mode_t::UBX:
 			_helper = new GPSDriverUBX(_interface, &GPS::callback, this, &_report_gps_pos, _p_report_sat_info,
-						   gps_ubx_dynmodel, heading_offset, f9p_uart2_baudrate, ubx_mode);
+						   gps_ubx_dynmodel, heading_offset, f9p_uart2_baudrate, ubx_mode, gps_ubx_normal_rate);
 			set_device_type(DRV_GPS_DEVTYPE_UBX);
 			break;
 #ifndef CONSTRAINED_FLASH

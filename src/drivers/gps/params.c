@@ -276,3 +276,30 @@ PARAM_DEFINE_INT32(GPS_1_GNSS, 0);
  * @group GPS
  */
 PARAM_DEFINE_INT32(GPS_2_GNSS, 0);
+
+/**
+ * u-blox measurement rate for normal mode
+ *
+ * Measurement rate for u-blox receivers in normal GPS mode (non-RTK/non-heading modes).
+ *
+ * Higher rates provide faster position updates but may restrict the number of satellites
+ * used to 16 (especially on M9N and similar receivers). Lower rates allow tracking more
+ * satellites (24-28+) but with slower position updates.
+ *
+ * F9P boards default to 10Hz in normal mode. Other boards (like M9N) default to 8Hz.
+ * This parameter allows overriding the default for improved EKF performance when
+ * higher update rates are preferred over maximum satellite count.
+ *
+ * @min 0
+ * @max 25
+ * @value 5 5Hz - Maximum satellites, slowest updates
+ * @value 8 8Hz - Good satellite count, moderate updates (default for non-F9P)
+ * @value 10 10Hz - Balanced performance (default for F9P)
+ * @value 15 15Hz - Fewer satellites, faster updates
+ * @value 20 20Hz - 16 satellites maximum
+ * @value 25 25Hz - 16 satellites maximum, fastest updates
+ * @unit Hz
+ * @reboot_required true
+ * @group GPS
+ */
+PARAM_DEFINE_INT32(GPS_UBX_N_RATE, 0);
