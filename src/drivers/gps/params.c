@@ -303,3 +303,38 @@ PARAM_DEFINE_INT32(GPS_2_GNSS, 0);
  * @group GPS
  */
 PARAM_DEFINE_INT32(GPS_UBX_N_RATE, 0);
+
+/**
+ * Unicore UM982 position update rate
+ *
+ * Update rate for position messages (GPGGA) from Unicore UM982 receivers.
+ * Higher rates provide faster position updates for better EKF performance.
+ *
+ * @min 1
+ * @max 25
+ * @value 5 5Hz - Good balance (default)
+ * @value 10 10Hz - Faster updates
+ * @value 20 20Hz - High performance
+ * @value 25 25Hz - Maximum rate
+ * @unit Hz
+ * @reboot_required true
+ * @group GPS
+ */
+PARAM_DEFINE_INT32(GPS_UNI_POS_RATE, 5);
+
+/**
+ * Unicore UM982 heading update rate
+ *
+ * Update rate for heading messages (UNIHEADINGA) from Unicore UM982 receivers.
+ * Used for dual-antenna RTK heading determination.
+ *
+ * @min 1
+ * @max 25
+ * @value 5 5Hz - Good balance (default)
+ * @value 10 10Hz - Faster updates
+ * @value 20 20Hz - High performance
+ * @unit Hz
+ * @reboot_required true
+ * @group GPS
+ */
+PARAM_DEFINE_INT32(GPS_UNI_HDG_RATE, 5);
