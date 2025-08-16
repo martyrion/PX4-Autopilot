@@ -781,6 +781,20 @@ GPS::run()
 		param_get(handle, &gps_ubx_normal_rate);
 	}
 
+	handle = param_find("GPS_UNI_POS_RATE");
+	int32_t unicore_pos_rate = 5;
+
+	if (handle != PARAM_INVALID) {
+		param_get(handle, &unicore_pos_rate);
+	}
+
+	handle = param_find("GPS_UNI_HDG_RATE");
+	int32_t unicore_head_rate = 5;
+
+	if (handle != PARAM_INVALID) {
+		param_get(handle, &unicore_head_rate);
+	}
+
 	initializeCommunicationDump();
 
 	uint64_t last_rate_measurement = hrt_absolute_time();
@@ -879,7 +893,8 @@ GPS::run()
 			break;
 
 		case gps_driver_mode_t::NMEA:
-			_helper = new GPSDriverNMEA(&GPS::callback, this, &_report_gps_pos, _p_report_sat_info, heading_offset);
+			_helper = new GPSDriverNMEA(&GPS::callback, this, &_report_gps_pos, _p_report_sat_info,
+						    heading_offset, unicore_pos_rate, unicore_head_rate);
 			set_device_type(DRV_GPS_DEVTYPE_NMEA);
 			break;
 #endif // CONSTRAINED_FLASH
