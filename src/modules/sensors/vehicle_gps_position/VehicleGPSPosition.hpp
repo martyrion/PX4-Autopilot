@@ -41,6 +41,7 @@
 #include <px4_platform_common/px4_config.h>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
 #include <uORB/Publication.hpp>
+#include <uORB/PublicationMulti.hpp>
 #include <uORB/Subscription.hpp>
 #include <uORB/SubscriptionCallback.hpp>
 #include <uORB/topics/parameter_update.h>
@@ -79,8 +80,17 @@ private:
 	static_assert(GPS_MAX_RECEIVERS == GpsBlending::GPS_MAX_RECEIVERS_BLEND,
 		      "GPS_MAX_RECEIVERS must match to GPS_MAX_RECEIVERS_BLEND");
 
+	// Publishers
+	// Instance 0: Standard blended/selected GPS output (always published)
 	uORB::Publication<sensor_gps_s> _vehicle_gps_position_pub{ORB_ID(vehicle_gps_position)};
 
+	// Multi-instance publishers (used when V_GPS_POS_MULTI is enabled)
+	// Instance 1: Raw GPS 0 data
+	uORB::PublicationMulti<sensor_gps_s> _vehicle_gps_position_pub_multi_1{ORB_ID(vehicle_gps_position)};
+	// Instance 2: Raw GPS 1 data
+	uORB::PublicationMulti<sensor_gps_s> _vehicle_gps_position_pub_multi_2{ORB_ID(vehicle_gps_position)};
+
+	// Subscriptions
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
 	uORB::SubscriptionCallbackWorkItem _sensor_gps_sub[GPS_MAX_RECEIVERS] {	/**< sensor data subscription */
@@ -92,10 +102,14 @@ private:
 
 	GpsBlending _gps_blending;
 
+	// Track if we've logged the multi-instance warning
+	bool _multi_instance_warning_logged{false};
+
 	DEFINE_PARAMETERS(
 		(ParamInt<px4::params::SENS_GPS_MASK>) _param_sens_gps_mask,
 		(ParamFloat<px4::params::SENS_GPS_TAU>) _param_sens_gps_tau,
-		(ParamInt<px4::params::SENS_GPS_PRIME>) _param_sens_gps_prime
+		(ParamInt<px4::params::SENS_GPS_PRIME>) _param_sens_gps_prime,
+		(ParamInt<px4::params::V_GPS_POS_MULTI>) _param_veh_gps_pos_multi
 	)
 };
 }; // namespace sensors
