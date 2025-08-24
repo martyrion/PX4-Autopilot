@@ -265,6 +265,7 @@ struct parameters {
 	int32_t height_sensor_ref{static_cast<int32_t>(HeightSensor::BARO)};
 	int32_t height_sensor_ref_r1{static_cast<int32_t>(HeightSensor::BARO)}; /// Dimitris
 	int32_t height_sensor_ref_r2{static_cast<int32_t>(HeightSensor::BARO)}; /// Dimitris
+	int32_t height_sensor_ref_r3{static_cast<int32_t>(HeightSensor::BARO)}; /// Dimitris
 	int32_t position_sensor_ref{static_cast<int32_t>(PositionSensor::GNSS)};
 
 	float delay_max_ms{110.f};              ///< maximum time delay of all the aiding sensors. Sets the size of the observation buffers. (mSec)
@@ -315,13 +316,29 @@ struct parameters {
 	int32_t gnss_ctrl{static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)};
 	int32_t gnss_ctrl_r1{static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)}; /// Dimitris
 	int32_t gnss_ctrl_r2{static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)}; /// Dimitris
+	int32_t gnss_ctrl_r3{static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)}; /// Dimitris
+
 	float gps_delay_ms{110.0f};             ///< GPS measurement delay relative to the IMU (mSec)
 
 	Vector3f gps_pos_body{};                ///< xyz position of the GPS antenna in body frame (m)
+	Vector3f gps_pos_body_r1{};             /// Dimitris
+	Vector3f gps_pos_body_r2{};             /// Dimitris
+	Vector3f gps_pos_body_r3{};             /// Dimitris
+
 
 	// position and velocity fusion
 	float gps_vel_noise{0.5f};           ///< minimum allowed observation noise for gps velocity fusion (m/sec)
 	float gps_pos_noise{0.5f};              ///< minimum allowed observation noise for gps position fusion (m)
+
+	float gps_vel_noise_r1{0.5f};           /// Dimitris
+	float gps_pos_noise_r1{0.5f};           /// Dimitris
+
+	float gps_vel_noise_r2{0.5f};           /// Dimitris
+	float gps_pos_noise_r2{0.5f};           /// Dimitris
+
+	float gps_vel_noise_r3{0.5f};           /// Dimitris
+	float gps_pos_noise_r3{0.5f};           /// Dimitris
+
 	float gps_hgt_bias_nsd{0.13f};          ///< process noise for gnss height bias estimation (m/s/sqrt(Hz))
 	float gps_pos_innov_gate{5.0f};         ///< GPS horizontal position innovation consistency gate size (STD)
 	float gps_vel_innov_gate{5.0f};         ///< GPS velocity innovation consistency gate size (STD)

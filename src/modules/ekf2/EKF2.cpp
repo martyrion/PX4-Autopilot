@@ -79,14 +79,40 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_noaid_noise(_params->pos_noaid_noise),
 #if defined(CONFIG_EKF2_GNSS)
 	_param_ekf2_gps_ctrl(_params->gnss_ctrl),
-	_param_ekfr_gps_ctrl_1(_params->gnss_ctrl_r1), /// Dimitris
-	_param_ekfr_gps_ctrl_2(_params->gnss_ctrl_r2), /// Dimitris
+	_param_ekfr_1_gps_ctrl(_params->gnss_ctrl_r1), /// Dimitris
+	_param_ekfr_2_gps_ctrl(_params->gnss_ctrl_r2), /// Dimitris
+	_param_ekfr_3_gps_ctrl(_params->gnss_ctrl_r3), /// Dimitris
 	_param_ekf2_gps_delay(_params->gps_delay_ms),
 	_param_ekf2_gps_pos_x(_params->gps_pos_body(0)),
 	_param_ekf2_gps_pos_y(_params->gps_pos_body(1)),
 	_param_ekf2_gps_pos_z(_params->gps_pos_body(2)),
+
+	_param_ekfr_1_gps_pos_x(_params->gps_pos_body_r1(0)), /// Dimitris
+	_param_ekfr_1_gps_pos_y(_params->gps_pos_body_r1(1)), /// Dimitris
+	_param_ekfr_1_gps_pos_z(_params->gps_pos_body_r1(2)),  /// Dimitris
+
+	_param_ekfr_2_gps_pos_x(_params->gps_pos_body_r2(0)), /// Dimitris
+	_param_ekfr_2_gps_pos_y(_params->gps_pos_body_r2(1)), /// Dimitris
+	_param_ekfr_2_gps_pos_z(_params->gps_pos_body_r2(2)), /// Dimitris
+
+	_param_ekfr_3_gps_pos_x(_params->gps_pos_body_r3(0)), /// Dimitris
+	_param_ekfr_3_gps_pos_y(_params->gps_pos_body_r3(1)), /// Dimitris
+	_param_ekfr_3_gps_pos_z(_params->gps_pos_body_r3(2)), /// Dimitris
+
+
 	_param_ekf2_gps_v_noise(_params->gps_vel_noise),
 	_param_ekf2_gps_p_noise(_params->gps_pos_noise),
+
+	_param_ekfr_1_gps_v_n(_params->gps_vel_noise_r1), /// Dimitris
+	_param_ekfr_1_gps_p_n(_params->gps_pos_noise_r1), /// Dimitris
+
+	_param_ekfr_2_gps_v_n(_params->gps_vel_noise_r2), /// Dimitris
+	_param_ekfr_2_gps_p_n(_params->gps_pos_noise_r2), /// Dimitris
+
+	_param_ekfr_3_gps_v_n(_params->gps_vel_noise_r3), /// Dimitris
+	_param_ekfr_3_gps_p_n(_params->gps_pos_noise_r3), /// Dimitris
+
+
 	_param_ekf2_gps_p_gate(_params->gps_pos_innov_gate),
 	_param_ekf2_gps_v_gate(_params->gps_vel_innov_gate),
 	_param_ekf2_gps_check(_params->gps_check_mask),
@@ -144,8 +170,9 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_synthetic_mag_z(_params->synthesize_mag_z),
 #endif // CONFIG_EKF2_MAGNETOMETER
 	_param_ekf2_hgt_ref(_params->height_sensor_ref),
-	_param_ekfr_hgt_ref_1(_params->height_sensor_ref_r1), /// Dimitris
-	_param_ekfr_hgt_ref_2(_params->height_sensor_ref_r2), /// Dimitris
+	_param_ekfr_1_hgt_ref(_params->height_sensor_ref_r1), /// Dimitris
+	_param_ekfr_2_hgt_ref(_params->height_sensor_ref_r2), /// Dimitris
+	_param_ekfr_3_hgt_ref(_params->height_sensor_ref_r3), /// Dimitris
 	_param_ekf2_noaid_tout(_params->valid_timeout_max),
 #if defined(CONFIG_EKF2_TERRAIN) || defined(CONFIG_EKF2_OPTICAL_FLOW) || defined(CONFIG_EKF2_RANGE_FINDER)
 	_param_ekf2_min_rng(_params->rng_gnd_clearance),
@@ -155,21 +182,21 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_terr_noise(_params->terrain_p_noise),
 	_param_ekf2_terr_grad(_params->terrain_gradient),
 #endif // CONFIG_EKF2_TERRAIN
-#if defined(CONFIG_EKF2_RANGE_FINDER)
-	_param_ekf2_rng_ctrl(_params->rng_ctrl),
-	_param_ekf2_rng_delay(_params->range_delay_ms),
-	_param_ekf2_rng_noise(_params->range_noise),
-	_param_ekf2_rng_sfe(_params->range_noise_scaler),
-	_param_ekf2_rng_gate(_params->range_innov_gate),
-	_param_ekf2_rng_pitch(_params->rng_sens_pitch),
-	_param_ekf2_rng_a_vmax(_params->max_vel_for_range_aid),
-	_param_ekf2_rng_a_hmax(_params->max_hagl_for_range_aid),
-	_param_ekf2_rng_a_igate(_params->range_aid_innov_gate),
-	_param_ekf2_rng_qlty_t(_params->range_valid_quality_s),
-	_param_ekf2_rng_k_gate(_params->range_kin_consistency_gate),
-	_param_ekf2_rng_pos_x(_params->rng_pos_body(0)),
-	_param_ekf2_rng_pos_y(_params->rng_pos_body(1)),
-	_param_ekf2_rng_pos_z(_params->rng_pos_body(2)),
+#if defined(CONFIG_EKF2_RANGE_FINDER) /// Dimitris commented out due to max
+	// _param_ekf2_rng_ctrl(_params->rng_ctrl),
+	// _param_ekf2_rng_delay(_params->range_delay_ms),
+	// _param_ekf2_rng_noise(_params->range_noise),
+	// _param_ekf2_rng_sfe(_params->range_noise_scaler),
+	// _param_ekf2_rng_gate(_params->range_innov_gate),
+	// _param_ekf2_rng_pitch(_params->rng_sens_pitch),
+	// _param_ekf2_rng_a_vmax(_params->max_vel_for_range_aid),
+	// _param_ekf2_rng_a_hmax(_params->max_hagl_for_range_aid),
+	// _param_ekf2_rng_a_igate(_params->range_aid_innov_gate),
+	// _param_ekf2_rng_qlty_t(_params->range_valid_quality_s),
+	// _param_ekf2_rng_k_gate(_params->range_kin_consistency_gate),
+	// _param_ekf2_rng_pos_x(_params->rng_pos_body(0)),
+	// _param_ekf2_rng_pos_y(_params->rng_pos_body(1)),
+	// _param_ekf2_rng_pos_z(_params->rng_pos_body(2)),
 #endif // CONFIG_EKF2_RANGE_FINDER
 #if defined(CONFIG_EKF2_EXTERNAL_VISION)
 	_param_ekf2_ev_delay(_params->ev_delay_ms),
@@ -325,13 +352,13 @@ bool EKF2::multi_init(int imu, int mag)
 
 #endif // CONFIG_EKF2_GRAVITY_FUSION
 
-#if defined(CONFIG_EKF2_RANGE_FINDER)
+#if defined(CONFIG_EKF2_RANGE_FINDER) /// Dimitris commented out due to max params
 
 	// RNG advertise
-	if (_param_ekf2_rng_ctrl.get()) {
-		_estimator_aid_src_rng_hgt_pub.advertise();
-		_estimator_rng_hgt_bias_pub.advertise();
-	}
+	// if (_param_ekf2_rng_ctrl.get()) {
+	// 	_estimator_aid_src_rng_hgt_pub.advertise();
+	// 	_estimator_rng_hgt_bias_pub.advertise();
+	// }
 
 #endif // CONFIG_EKF2_RANGE_FINDER
 
@@ -382,11 +409,6 @@ bool EKF2::multi_init(int imu, int mag)
 	return false;
 }
 
-// Dimitris
-int gps_instance = getAssignedGpsInstance();
-_vehicle_gps_position_sub.ChangeInstance(gps_instance);
-
-
 #endif // CONFIG_EKF2_MULTI_INSTANCE
 
 int EKF2::print_status(bool verbose)
@@ -407,23 +429,7 @@ int EKF2::print_status(bool verbose)
 	return 0;
 }
 
-// Dimitris
 
-int EKF2::getAssignedGpsInstance() const
-{
-    if (isResearchInstance()) {
-        int research_id = getResearchInstanceId();
-        switch (research_id) {
-        case 0:  // Instance 1 (first research EKF)
-            return _param_ekfr_gps_1.get();
-        case 1:  // Instance 2 (second research EKF)
-            return _param_ekfr_gps_2.get();
-        }
-    }
-
-    // Instance 0 (primary EKF)
-    return _param_ekfr_gps_primary.get();
-}
 
 
 
@@ -458,29 +464,94 @@ void EKF2::Run()
 
 
 // Dimitris
+		// In EKF2::Run() method, replace the research instance parameter section with:
+
 		if (isResearchInstance()) {
 			int research_id = getResearchInstanceId();
-
 			PX4_INFO("Research instance %d (ID %d): Applying custom parameters", _instance, research_id);
 
-			switch (research_id) {
-			case 0:
-				PX4_INFO("  Before: height_ref=%d, gnss_ctrl=%d",
-					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
-				_params->height_sensor_ref = _param_ekfr_hgt_ref_1.get();
-				_params->gnss_ctrl = _param_ekfr_gps_ctrl_1.get();
-				PX4_INFO("  After: height_ref=%d, gnss_ctrl=%d",
-					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
-				break;
+			// Arrays for all custom parameters based on research instance ID
+			// Height reference (int32_t values)
+			int32_t height_refs[] = {
+				_param_ekfr_1_hgt_ref.get(),
+				_param_ekfr_2_hgt_ref.get(),
+				_param_ekfr_3_hgt_ref.get()
+			};
 
-			case 1:
-				PX4_INFO("  Before: height_ref=%d, gnss_ctrl=%d",
+			// GNSS control (int32_t values)
+			int32_t gnss_ctrls[] = {
+				_param_ekfr_1_gps_ctrl.get(),
+				_param_ekfr_2_gps_ctrl.get(),
+				_param_ekfr_3_gps_ctrl.get()
+			};
+
+			// GPS velocity noise (float values)
+			float gps_v_noise[] = {
+				_param_ekfr_1_gps_v_n.get(),
+				_param_ekfr_2_gps_v_n.get(),
+				_param_ekfr_3_gps_v_n.get()
+			};
+
+			// GPS position noise (float values)
+			float gps_p_noise[] = {
+				_param_ekfr_1_gps_p_n.get(),
+				_param_ekfr_2_gps_p_n.get(),
+				_param_ekfr_3_gps_p_n.get()
+			};
+
+			// GPS position X (float values)
+			float gps_pos_x[] = {
+				_param_ekfr_1_gps_pos_x.get(),
+				_param_ekfr_2_gps_pos_x.get(),
+				_param_ekfr_3_gps_pos_x.get()
+			};
+
+			// GPS position Y (float values)
+			float gps_pos_y[] = {
+				_param_ekfr_1_gps_pos_y.get(),
+				_param_ekfr_2_gps_pos_y.get(),
+				_param_ekfr_3_gps_pos_y.get()
+			};
+
+			// GPS position Z (float values)
+			float gps_pos_z[] = {
+				_param_ekfr_1_gps_pos_z.get(),
+				_param_ekfr_2_gps_pos_z.get(),
+				_param_ekfr_3_gps_pos_z.get()
+			};
+
+			if (research_id >= 0 && research_id < 3) {
+				// Log current values before applying changes
+				PX4_INFO("  Before applying research params:");
+				PX4_INFO("    height_ref=%d, gnss_ctrl=%d",
 					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
-				_params->height_sensor_ref = _param_ekfr_hgt_ref_2.get();
-				_params->gnss_ctrl = _param_ekfr_gps_ctrl_2.get();
-				PX4_INFO("  After: height_ref=%d, gnss_ctrl=%d",
+				PX4_INFO("    gps_vel_noise=%.3f, gps_pos_noise=%.3f",
+					 (double)_params->gps_vel_noise, (double)_params->gps_pos_noise);
+				PX4_INFO("    gps_pos_body=(%.3f, %.3f, %.3f)",
+					 (double)_params->gps_pos_body(0), (double)_params->gps_pos_body(1),
+					 (double)_params->gps_pos_body(2));
+
+				// Apply all custom parameters for this research instance
+				_params->height_sensor_ref = height_refs[research_id];
+				_params->gnss_ctrl = gnss_ctrls[research_id];
+				_params->gps_vel_noise = gps_v_noise[research_id];
+				_params->gps_pos_noise = gps_p_noise[research_id];
+				_params->gps_pos_body(0) = gps_pos_x[research_id];
+				_params->gps_pos_body(1) = gps_pos_y[research_id];
+				_params->gps_pos_body(2) = gps_pos_z[research_id];
+
+				// Log new values after applying changes
+				PX4_INFO("  After applying research params:");
+				PX4_INFO("    height_ref=%d, gnss_ctrl=%d",
 					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
-				break;
+				PX4_INFO("    gps_vel_noise=%.3f, gps_pos_noise=%.3f",
+					 (double)_params->gps_vel_noise, (double)_params->gps_pos_noise);
+				PX4_INFO("    gps_pos_body=(%.3f, %.3f, %.3f)",
+					 (double)_params->gps_pos_body(0), (double)_params->gps_pos_body(1),
+					 (double)_params->gps_pos_body(2));
+
+			} else {
+				PX4_WARN("Research instance ID %d out of range (0-2)", research_id);
 			}
 
 		} else {
@@ -890,11 +961,11 @@ void EKF2::VerifyParams()
 
 #endif // CONFIG_EKF2_MAGNETOMETER
 
-#if defined(CONFIG_EKF2_RANGE_FINDER)
+#if defined(CONFIG_EKF2_RANGE_FINDER) /// Dimitris commented out due to max params
 
-	if (_param_ekf2_rng_delay.get() > delay_max) {
-		delay_max = _param_ekf2_rng_delay.get();
-	}
+	// if (_param_ekf2_rng_delay.get() > delay_max) {
+	// 	delay_max = _param_ekf2_rng_delay.get();
+	// }
 
 #endif // CONFIG_EKF2_RANGE_FINDER
 
@@ -2786,6 +2857,7 @@ bool EKF2::createResearchInstances(int num_research_instances, int default_imu_i
 	if (param_ekfr_imu_primary != PARAM_INVALID) {
 		param_get(param_ekfr_imu_primary, &primary_imu_idx);
 	}
+
 	if (param_ekfr_mag_primary != PARAM_INVALID) {
 		param_get(param_ekfr_mag_primary, &primary_mag_idx);
 	}
@@ -2804,25 +2876,38 @@ bool EKF2::createResearchInstances(int num_research_instances, int default_imu_i
 				 primary_instance, (int)primary_imu_idx, (int)primary_mag_idx);
 
 			// Get parameter values for research instances
-			param_t param_ekfr_imu_1 = param_find("EKFR_IMU_1");
-			param_t param_ekfr_imu_2 = param_find("EKFR_IMU_2");
-			param_t param_ekfr_mag_1 = param_find("EKFR_MAG_1");
-			param_t param_ekfr_mag_2 = param_find("EKFR_MAG_2");
+			param_t param_ekfr_1_imu = param_find("EKFR_1_IMU");
+			param_t param_ekfr_2_imu = param_find("EKFR_2_IMU");
+			param_t param_ekfr_3_imu = param_find("EKFR_3_IMU");
+			param_t param_ekfr_1_mag = param_find("EKFR_1_MAG");
+			param_t param_ekfr_2_mag = param_find("EKFR_2_MAG");
+			param_t param_ekfr_3_mag = param_find("EKFR_2_MAG");
 
 			int32_t research_imu_indices[2] = {0, 0}; // default to IMU 0
 			int32_t research_mag_indices[2] = {0, 0}; // default to MAG 0
 
-			if (param_ekfr_imu_1 != PARAM_INVALID) {
-				param_get(param_ekfr_imu_1, &research_imu_indices[0]);
+			if (param_ekfr_1_imu != PARAM_INVALID) {
+				param_get(param_ekfr_1_imu, &research_imu_indices[0]);
 			}
-			if (param_ekfr_imu_2 != PARAM_INVALID) {
-				param_get(param_ekfr_imu_2, &research_imu_indices[1]);
+
+			if (param_ekfr_2_imu != PARAM_INVALID) {
+				param_get(param_ekfr_1_imu, &research_imu_indices[1]);
 			}
-			if (param_ekfr_mag_1 != PARAM_INVALID) {
-				param_get(param_ekfr_mag_1, &research_mag_indices[0]);
+
+			if (param_ekfr_3_imu != PARAM_INVALID) {
+				param_get(param_ekfr_3_imu, &research_imu_indices[2]);
 			}
-			if (param_ekfr_mag_2 != PARAM_INVALID) {
-				param_get(param_ekfr_mag_2, &research_mag_indices[1]);
+
+			if (param_ekfr_1_mag != PARAM_INVALID) {
+				param_get(param_ekfr_1_mag, &research_mag_indices[0]);
+			}
+
+			if (param_ekfr_2_mag != PARAM_INVALID) {
+				param_get(param_ekfr_2_mag, &research_mag_indices[1]);
+			}
+
+			if (param_ekfr_3_mag != PARAM_INVALID) {
+				param_get(param_ekfr_3_mag, &research_mag_indices[2]);
 			}
 
 			// Create research instances
