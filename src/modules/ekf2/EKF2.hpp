@@ -149,6 +149,8 @@ public:
 	static bool trylock_module() { return (pthread_mutex_trylock(&ekf2_module_mutex) == 0); }
 	static void unlock_module() { pthread_mutex_unlock(&ekf2_module_mutex); }
 
+	void setAsResearchInstance(bool val) { _force_research = val; } /// Dimitris
+
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
 	bool multi_init(int imu, int mag);
 #endif // CONFIG_EKF2_MULTI_INSTANCE
@@ -156,6 +158,38 @@ public:
 	int instance() const { return _instance; }
 
 private:
+
+	// Helper method to determine if this is a research instance
+	// Dimitris
+	// START OF BLOCK
+
+	bool _force_research{false};
+	int _research_instance_id{-1}; // -1 = not research, 0+ = research instance ID
+
+	bool isResearchInstance() const
+	{
+		bool result = _force_research || _research_instance_id >= 0;
+		PX4_INFO("isResearchInstance() called: _force_research=%s, _research_instance_id=%d, result=%s",
+			 _force_research ? "true" : "false", _research_instance_id, result ? "true" : "false");
+		return result;
+	}
+
+	int getResearchInstanceId() const { return _research_instance_id; }
+
+	// Static helper function for creating research instances
+	static bool createResearchInstances(int num_research_instances, int imu_idx, int mag_idx);
+
+	void setAsResearchInstance(bool val, int research_id = 0)
+	{
+		_force_research = val;
+		_research_instance_id = val ? research_id : -1;
+
+		// Debug logging
+		PX4_INFO("setAsResearchInstance called: val=%s, research_id=%d, _force_research=%s, _research_instance_id=%d",
+			 val ? "true" : "false", research_id,
+			 _force_research ? "true" : "false", _research_instance_id);
+	}
+	// END OF BLOCK
 
 	static constexpr uint8_t MAX_NUM_IMUS = 4;
 	static constexpr uint8_t MAX_NUM_MAGS = 4;
@@ -501,6 +535,18 @@ private:
 		(ParamExtFloat<px4::params::EKF2_DELAY_MAX>) _param_ekf2_delay_max,
 		(ParamExtInt<px4::params::EKF2_IMU_CTRL>) _param_ekf2_imu_ctrl,
 
+		(ParamInt<px4::params::EKFR_EN>) _param_ekfr_en, /// Dimitris
+
+		// Research instance IMU/MAG selection parameters - Dimitris
+		(ParamInt<px4::params::EKFR_IMU_PRIMARY>) _param_ekfr_imu_primary,  ///< IMU instance for primary EKF
+		(ParamInt<px4::params::EKFR_MAG_PRIMARY>) _param_ekfr_mag_primary,  ///< MAG instanc
+		(ParamInt<px4::params::EKFR_IMU_1>) _param_ekfr_imu_1,    ///< IMU instance for research EKF 1
+		(ParamInt<px4::params::EKFR_IMU_2>) _param_ekfr_imu_2,    ///< IMU instance for research EKF 2
+		(ParamInt<px4::params::EKFR_MAG_1>) _param_ekfr_mag_1,    ///< MAG instance for research EKF 1
+		(ParamInt<px4::params::EKFR_MAG_2>) _param_ekfr_mag_2,    ///< MAG instance for research EKF 2
+
+
+
 #if defined(CONFIG_EKF2_AUXVEL)
 		(ParamExtFloat<px4::params::EKF2_AVEL_DELAY>)
 		_param_ekf2_avel_delay,	///< auxiliary velocity measurement delay relative to the IMU (mSec)
@@ -525,6 +571,8 @@ private:
 
 #if defined(CONFIG_EKF2_GNSS)
 		(ParamExtInt<px4::params::EKF2_GPS_CTRL>) _param_ekf2_gps_ctrl,
+		(ParamExtInt<px4::params::EKFR_GPS_CTRL_1>) _param_ekfr_gps_ctrl_1, /// Dimitris
+		(ParamExtInt<px4::params::EKFR_GPS_CTRL_2>) _param_ekfr_gps_ctrl_2, /// Dimitris
 		(ParamExtFloat<px4::params::EKF2_GPS_DELAY>) _param_ekf2_gps_delay,
 
 		(ParamExtFloat<px4::params::EKF2_GPS_POS_X>) _param_ekf2_gps_pos_x,
@@ -611,7 +659,8 @@ private:
 #endif // CONFIG_EKF2_MAGNETOMETER
 
 		(ParamExtInt<px4::params::EKF2_HGT_REF>) _param_ekf2_hgt_ref,    ///< selects the primary source for height data
-
+		(ParamExtInt<px4::params::EKFR_HGT_REF_1>) _param_ekfr_hgt_ref_1,    /// Dimitris
+		(ParamExtInt<px4::params::EKFR_HGT_REF_2>) _param_ekfr_hgt_ref_2,    /// Dimitris
 		(ParamExtInt<px4::params::EKF2_NOAID_TOUT>)
 		_param_ekf2_noaid_tout,	///< maximum lapsed time from last fusion of measurements that constrain drift before the EKF will report the horizontal nav solution invalid (uSec)
 
