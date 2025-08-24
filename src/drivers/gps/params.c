@@ -328,7 +328,6 @@ PARAM_DEFINE_INT32(GPS_UBX_N_RATE, 0);
  * @value 5 5Hz - Low bandwidth, acceptable for most applications
  * @value 8 5Hz - Low bandwidth, slightly better
  * @value 10 10Hz - Standard rate, good balance of performance and bandwidth
- * @value 12.5 12.5Hz - Standard rate, slightly better
  * @value 20 20Hz - High performance, requires good telemetry link
  * @unit Hz
  * @reboot_required true
