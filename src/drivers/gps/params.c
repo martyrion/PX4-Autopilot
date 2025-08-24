@@ -300,7 +300,7 @@ PARAM_DEFINE_INT32(GPS_2_GNSS, 0);
  * @value 25 25Hz - 16 satellites maximum, fastest updates
  * @unit Hz
  * @reboot_required true
- * @group GPS
+ * @group RESEARCH
  */
 PARAM_DEFINE_INT32(GPS_UBX_N_RATE, 0);
 
@@ -331,6 +331,6 @@ PARAM_DEFINE_INT32(GPS_UBX_N_RATE, 0);
  * @value 20 20Hz - High performance, requires good telemetry link
  * @unit Hz
  * @reboot_required true
- * @group GPS
+ * @group RESEARCH
  */
 PARAM_DEFINE_INT32(GPS_ROVER_RATE, 10);

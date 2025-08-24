@@ -95,6 +95,6 @@ PARAM_DEFINE_INT32(SENS_GPS_PRIME, 0);
  *
  * @boolean
  * @reboot_required true
- * @group Sensors
+ * @group RESEARCH
  */
 PARAM_DEFINE_INT32(V_GPS_POS_MULTI, 0);
