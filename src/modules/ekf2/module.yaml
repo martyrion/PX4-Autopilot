@@ -1651,3 +1651,27 @@ parameters:
       default: 0.0
       unit: m
       decimal: 3
+    EKFR_1_GPS_SRC:
+      description:
+        short: Which instance of vehicle_gps_position should the filter use
+      type: int32
+      default: 1
+      min: 1
+      max: 2
+      reboot_required: true
+    EKFR_2_GPS_SRC:
+      description:
+        short: Which instance of vehicle_gps_position should the filter use
+      type: int32
+      default: 1
+      min: 1
+      max: 2
+      reboot_required: true
+    EKFR_3_GPS_SRC:
+      description:
+        short: Which instance of vehicle_gps_position should the filter use
+      type: int32
+      default: 1
+      min: 1
+      max: 2
+      reboot_required: true

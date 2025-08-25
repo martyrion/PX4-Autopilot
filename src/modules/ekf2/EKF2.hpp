@@ -162,6 +162,7 @@ private:
 	// Helper method to determine if this is a research instance
 	// Dimitris
 	// START OF BLOCK
+	bool _debug_gps_logged{false};
 
 	bool _force_research{false};
 	int _research_instance_id{-1}; // -1 = not research, 0+ = research instance ID
@@ -190,6 +191,7 @@ private:
 			 _force_research ? "true" : "false", _research_instance_id);
 	}
 	// END OF BLOCK
+
 
 	static constexpr uint8_t MAX_NUM_IMUS = 4;
 	static constexpr uint8_t MAX_NUM_MAGS = 4;
@@ -503,7 +505,9 @@ private:
 
 	float _last_gnss_hgt_bias_published{};
 
-	uORB::Subscription _vehicle_gps_position_sub{ORB_ID(vehicle_gps_position)};
+	// uORB::Subscription _vehicle_gps_position_sub{ORB_ID(vehicle_gps_position)};
+	uORB::SubscriptionMultiArray<sensor_gps_s> _vehicle_gps_position_subs{ORB_ID::sensor_gps};
+	uint8_t _current_gps_instance{0};
 
 	uORB::PublicationMulti<estimator_bias_s> _estimator_gnss_hgt_bias_pub{ORB_ID(estimator_gnss_hgt_bias)};
 	uORB::PublicationMulti<estimator_gps_status_s> _estimator_gps_status_pub{ORB_ID(estimator_gps_status)};
@@ -595,6 +599,11 @@ private:
 		(ParamExtFloat<px4::params::EKFR_3_GPS_POS_Y>) _param_ekfr_3_gps_pos_y, /// Dimitris
 		(ParamExtFloat<px4::params::EKFR_3_GPS_POS_Z>) _param_ekfr_3_gps_pos_z, /// Dimitris
 
+		// GPS source selection parameters for research instances
+		(ParamInt<px4::params::EKFR_1_GPS_SRC>) _param_ekfr_1_gps_src,
+		(ParamInt<px4::params::EKFR_2_GPS_SRC>) _param_ekfr_2_gps_src,
+		(ParamInt<px4::params::EKFR_3_GPS_SRC>) _param_ekfr_3_gps_src,
+
 
 		(ParamExtFloat<px4::params::EKF2_GPS_V_NOISE>) _param_ekf2_gps_v_noise,
 		(ParamExtFloat<px4::params::EKF2_GPS_P_NOISE>) _param_ekf2_gps_p_noise,
@@ -603,10 +612,10 @@ private:
 		(ParamExtFloat<px4::params::EKFR_1_GPS_P_N>) _param_ekfr_1_gps_p_n,
 
 		(ParamExtFloat<px4::params::EKFR_2_GPS_V_N>) _param_ekfr_2_gps_v_n,
-		(ParamExtFloat<px4::params::EKFR_2_GPS_V_N>) _param_ekfr_2_gps_p_n,
+		(ParamExtFloat<px4::params::EKFR_2_GPS_P_N>) _param_ekfr_2_gps_p_n,
 
 		(ParamExtFloat<px4::params::EKFR_3_GPS_V_N>) _param_ekfr_3_gps_v_n,
-		(ParamExtFloat<px4::params::EKFR_3_GPS_V_N>) _param_ekfr_3_gps_p_n,
+		(ParamExtFloat<px4::params::EKFR_3_GPS_P_N>) _param_ekfr_3_gps_p_n,
 
 
 		(ParamExtFloat<px4::params::EKF2_GPS_P_GATE>) _param_ekf2_gps_p_gate,

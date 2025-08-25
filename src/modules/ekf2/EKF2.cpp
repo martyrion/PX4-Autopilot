@@ -45,6 +45,8 @@ static constexpr float kMaxDelaySecondsExternalPosMeasurement = 15.0f; // [s]
 
 pthread_mutex_t ekf2_module_mutex = PTHREAD_MUTEX_INITIALIZER;
 static px4::atomic<EKF2 *> _objects[EKF2_MAX_INSTANCES] {};
+static px4::atomic<EKF2 *> _research_objects[EKF2_MAX_INSTANCES] {};
+static px4::atomic<int> _research_instance_count{0};
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
 static px4::atomic<EKF2Selector *> _ekf2_selector {nullptr};
 #endif // CONFIG_EKF2_MULTI_INSTANCE
@@ -520,6 +522,13 @@ void EKF2::Run()
 				_param_ekfr_3_gps_pos_z.get()
 			};
 
+			// GPS source selection (uint8_t values)
+			uint8_t gps_sources[] = {
+				(uint8_t)_param_ekfr_1_gps_src.get(),
+				(uint8_t)_param_ekfr_2_gps_src.get(),
+				(uint8_t)_param_ekfr_3_gps_src.get()
+			};
+
 			if (research_id >= 0 && research_id < 3) {
 				// Log current values before applying changes
 				PX4_INFO("  Before applying research params:");
@@ -530,6 +539,7 @@ void EKF2::Run()
 				PX4_INFO("    gps_pos_body=(%.3f, %.3f, %.3f)",
 					 (double)_params->gps_pos_body(0), (double)_params->gps_pos_body(1),
 					 (double)_params->gps_pos_body(2));
+				PX4_INFO("    current_gps_instance=%d", _current_gps_instance);
 
 				// Apply all custom parameters for this research instance
 				_params->height_sensor_ref = height_refs[research_id];
@@ -539,6 +549,7 @@ void EKF2::Run()
 				_params->gps_pos_body(0) = gps_pos_x[research_id];
 				_params->gps_pos_body(1) = gps_pos_y[research_id];
 				_params->gps_pos_body(2) = gps_pos_z[research_id];
+				_current_gps_instance = gps_sources[research_id];
 
 				// Log new values after applying changes
 				PX4_INFO("  After applying research params:");
@@ -549,6 +560,7 @@ void EKF2::Run()
 				PX4_INFO("    gps_pos_body=(%.3f, %.3f, %.3f)",
 					 (double)_params->gps_pos_body(0), (double)_params->gps_pos_body(1),
 					 (double)_params->gps_pos_body(2));
+				PX4_INFO("    current_gps_instance=%d", _current_gps_instance);
 
 			} else {
 				PX4_WARN("Research instance ID %d out of range (0-2)", research_id);
@@ -556,6 +568,7 @@ void EKF2::Run()
 
 		} else {
 			PX4_INFO("Instance %d: Using standard parameters", _instance);
+			_current_gps_instance = 0; // Standard instance uses GPS 0
 		}
 
 		VerifyParams();
@@ -2536,7 +2549,22 @@ void EKF2::UpdateGpsSample(ekf2_timestamps_s &ekf2_timestamps)
 	// EKF GPS message
 	sensor_gps_s vehicle_gps_position;
 
-	if (_vehicle_gps_position_sub.update(&vehicle_gps_position)) {
+	// Safety check: ensure normal instances always use GPS 0
+	if (!isResearchInstance() && _current_gps_instance != 0) {
+		PX4_WARN("Normal instance %d had non-zero GPS instance %d, forcing to 0",
+			 _instance, _current_gps_instance);
+		_current_gps_instance = 0;
+	}
+
+	// Validate GPS instance bounds
+	if (_current_gps_instance >= _vehicle_gps_position_subs.size()) {
+		PX4_ERR("Instance %d: GPS instance %d out of bounds, using GPS 0",
+			_instance, _current_gps_instance);
+		_current_gps_instance = 0;
+	}
+
+	// Use the configured GPS instance
+	if (_vehicle_gps_position_subs[_current_gps_instance].update(&vehicle_gps_position)) {
 
 		Vector3f vel_ned;
 
@@ -2548,6 +2576,15 @@ void EKF2::UpdateGpsSample(ekf2_timestamps_s &ekf2_timestamps)
 		} else {
 			return; //TODO: change and set to NAN
 		}
+
+
+		// Debug logging (print only once per instance)
+		if (isResearchInstance() && !_debug_gps_logged) {
+			PX4_INFO("Research instance %d (ID %d) consuming GPS%d data",
+				 _instance, getResearchInstanceId(), _current_gps_instance);
+			_debug_gps_logged = true;
+		}
+
 
 		gnssSample gnss_sample{
 			.time_us = vehicle_gps_position.timestamp,
@@ -2573,6 +2610,7 @@ void EKF2::UpdateGpsSample(ekf2_timestamps_s &ekf2_timestamps)
 		_gps_alttitude_ellipsoid = static_cast<int32_t>(round(vehicle_gps_position.altitude_ellipsoid_m * 1e3));
 	}
 }
+
 #endif // CONFIG_EKF2_GNSS
 
 #if defined(CONFIG_EKF2_MAGNETOMETER)
@@ -2864,7 +2902,7 @@ bool EKF2::createResearchInstances(int num_research_instances, int default_imu_i
 
 	PX4_INFO("Primary instance will use IMU %d, MAG %d", (int)primary_imu_idx, (int)primary_mag_idx);
 
-	// Create primary instance
+	// Create primary instance (goes to normal _objects array)
 	EKF2 *ekf2_primary = new EKF2(true, px4::ins_instance_to_wq(primary_imu_idx), false);
 
 	if (ekf2_primary && ekf2_primary->multi_init(primary_imu_idx, primary_mag_idx)) {
@@ -2881,17 +2919,17 @@ bool EKF2::createResearchInstances(int num_research_instances, int default_imu_i
 			param_t param_ekfr_3_imu = param_find("EKFR_3_IMU");
 			param_t param_ekfr_1_mag = param_find("EKFR_1_MAG");
 			param_t param_ekfr_2_mag = param_find("EKFR_2_MAG");
-			param_t param_ekfr_3_mag = param_find("EKFR_2_MAG");
+			param_t param_ekfr_3_mag = param_find("EKFR_3_MAG");
 
-			int32_t research_imu_indices[2] = {0, 0}; // default to IMU 0
-			int32_t research_mag_indices[2] = {0, 0}; // default to MAG 0
+			int32_t research_imu_indices[3] = {0, 0, 0}; // default to IMU 0
+			int32_t research_mag_indices[3] = {0, 0, 0}; // default to MAG 0
 
 			if (param_ekfr_1_imu != PARAM_INVALID) {
 				param_get(param_ekfr_1_imu, &research_imu_indices[0]);
 			}
 
 			if (param_ekfr_2_imu != PARAM_INVALID) {
-				param_get(param_ekfr_1_imu, &research_imu_indices[1]);
+				param_get(param_ekfr_2_imu, &research_imu_indices[1]);
 			}
 
 			if (param_ekfr_3_imu != PARAM_INVALID) {
@@ -2910,7 +2948,7 @@ bool EKF2::createResearchInstances(int num_research_instances, int default_imu_i
 				param_get(param_ekfr_3_mag, &research_mag_indices[2]);
 			}
 
-			// Create research instances
+			// Create research instances - store in separate array
 			for (int research_id = 0; research_id < num_research_instances; research_id++) {
 				int imu_idx = research_imu_indices[research_id];
 				int mag_idx = research_mag_indices[research_id];
@@ -2925,15 +2963,16 @@ bool EKF2::createResearchInstances(int num_research_instances, int default_imu_i
 					ekf2_research->setAsResearchInstance(true, research_id);
 
 					if (ekf2_research->multi_init(imu_idx, mag_idx)) {
-						int research_instance = ekf2_research->instance();
+						// Store in research array instead of main objects array
+						if (research_id < EKF2_MAX_INSTANCES && _research_objects[research_id].load() == nullptr) {
+							_research_objects[research_id].store(ekf2_research);
+							_research_instance_count.fetch_add(1);
 
-						if ((research_instance >= 0) && (_objects[research_instance].load() == nullptr)) {
-							_objects[research_instance].store(ekf2_research);
-							PX4_INFO("Research instance %d (research ID %d) created with IMU %d, MAG %d",
-								 research_instance, research_id, imu_idx, mag_idx);
+							PX4_INFO("Research instance %d stored in research array slot %d with IMU %d, MAG %d",
+								 ekf2_research->instance(), research_id, imu_idx, mag_idx);
 
 						} else {
-							PX4_ERR("Research instance numbering problem: %d", research_instance);
+							PX4_ERR("Research array slot %d already occupied or invalid", research_id);
 							delete ekf2_research;
 							success = false;
 							break;
@@ -2972,6 +3011,7 @@ bool EKF2::createResearchInstances(int num_research_instances, int default_imu_i
 
 	return success;
 }
+
 #endif // CONFIG_EKF2_MULTI_INSTANCE
 
 
@@ -3248,90 +3288,132 @@ extern "C" __EXPORT int ekf2_main(int argc, char *argv[])
 		return 0;
 #endif // CONFIG_EKF2_MULTI_INSTANCE
 	} else if (strcmp(argv[1], "status") == 0) {
-		if (EKF2::trylock_module()) {
+    if (EKF2::trylock_module()) {
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
-			if (_ekf2_selector.load()) {
-				_ekf2_selector.load()->PrintStatus();
-			}
+        if (_ekf2_selector.load()) {
+            _ekf2_selector.load()->PrintStatus();
+        }
 #endif // CONFIG_EKF2_MULTI_INSTANCE
 
-			bool verbose_status = false;
+        bool verbose_status = false;
 
 #if defined(CONFIG_EKF2_VERBOSE_STATUS)
-			if (argc > 2 && (strcmp(argv[2], "-v") == 0)) {
-				verbose_status = true;
-			}
+        if (argc > 2 && (strcmp(argv[2], "-v") == 0)) {
+            verbose_status = true;
+        }
 #endif // CONFIG_EKF2_VERBOSE_STATUS
 
-			for (int i = 0; i < EKF2_MAX_INSTANCES; i++) {
-				if (_objects[i].load()) {
-					PX4_INFO_RAW("\n");
-					_objects[i].load()->print_status(verbose_status);
-				}
-			}
+        // Print standard instances
+        PX4_INFO_RAW("\n=== Standard EKF Instances ===");
+        for (int i = 0; i < EKF2_MAX_INSTANCES; i++) {
+            if (_objects[i].load()) {
+                PX4_INFO_RAW("\n");
+                _objects[i].load()->print_status(verbose_status);
+            }
+        }
 
-			EKF2::unlock_module();
+        // Print research instances
+        int research_count = _research_instance_count.load();
+        if (research_count > 0) {
+            PX4_INFO_RAW("\n=== Research EKF Instances ===");
+            for (int i = 0; i < EKF2_MAX_INSTANCES; i++) {
+                if (_research_objects[i].load()) {
+                    PX4_INFO_RAW("\n");
+                    _research_objects[i].load()->print_status(verbose_status);
+                }
+            }
+        }
 
-		} else {
-			PX4_WARN("module locked, try again later");
-		}
+        EKF2::unlock_module();
 
-		return 0;
+    } else {
+        PX4_WARN("module locked, try again later");
+    }
+
+    return 0;
 
 	} else if (strcmp(argv[1], "stop") == 0) {
-		EKF2::lock_module();
+    EKF2::lock_module();
 
-		if (argc > 2) {
-			int instance = atoi(argv[2]);
+    if (argc > 2) {
+        int instance = atoi(argv[2]);
 
-			if (instance >= 0 && instance < EKF2_MAX_INSTANCES) {
-				PX4_INFO("stopping instance %d", instance);
-				EKF2 *inst = _objects[instance].load();
+        if (instance >= 0 && instance < EKF2_MAX_INSTANCES) {
+            // Check if it's a standard instance
+            EKF2 *inst = _objects[instance].load();
+            if (inst) {
+                PX4_INFO("stopping standard instance %d", instance);
+                inst->request_stop();
+                px4_usleep(20000); // 20 ms
+                delete inst;
+                _objects[instance].store(nullptr);
+            } else {
+                // Check research instances
+                inst = _research_objects[instance].load();
+                if (inst) {
+                    PX4_INFO("stopping research instance %d", instance);
+                    inst->request_stop();
+                    px4_usleep(20000); // 20 ms
+                    delete inst;
+                    _research_objects[instance].store(nullptr);
+                    _research_instance_count.fetch_sub(1);
+                } else {
+                    PX4_ERR("instance %d not found", instance);
+                }
+            }
+        } else {
+            PX4_ERR("invalid instance %d", instance);
+        }
 
-				if (inst) {
-					inst->request_stop();
-					px4_usleep(20000); // 20 ms
-					delete inst;
-					_objects[instance].store(nullptr);
-				}
-			} else {
-				PX4_ERR("invalid instance %d", instance);
-			}
-
-		} else {
-			// otherwise stop everything
-			bool was_running = false;
+    } else {
+        // Stop everything
+        bool was_running = false;
 
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
-			if (_ekf2_selector.load()) {
-				PX4_INFO("stopping ekf2 selector");
-				_ekf2_selector.load()->Stop();
-				delete _ekf2_selector.load();
-				_ekf2_selector.store(nullptr);
-				was_running = true;
-			}
+        if (_ekf2_selector.load()) {
+            PX4_INFO("stopping ekf2 selector");
+            _ekf2_selector.load()->Stop();
+            delete _ekf2_selector.load();
+            _ekf2_selector.store(nullptr);
+            was_running = true;
+        }
 #endif // CONFIG_EKF2_MULTI_INSTANCE
 
-			for (int i = 0; i < EKF2_MAX_INSTANCES; i++) {
-				EKF2 *inst = _objects[i].load();
+        // Stop standard instances
+        for (int i = 0; i < EKF2_MAX_INSTANCES; i++) {
+            EKF2 *inst = _objects[i].load();
+            if (inst) {
+                PX4_INFO("stopping standard ekf2 instance %d", i);
+                was_running = true;
+                inst->request_stop();
+                px4_usleep(20000); // 20 ms
+                delete inst;
+                _objects[i].store(nullptr);
+            }
+        }
 
-				if (inst) {
-					PX4_INFO("stopping ekf2 instance %d", i);
-					was_running = true;
-					inst->request_stop();
-					px4_usleep(20000); // 20 ms
-					delete inst;
-					_objects[i].store(nullptr);
-				}
-			}
+        // Stop research instances
+        for (int i = 0; i < EKF2_MAX_INSTANCES; i++) {
+            EKF2 *inst = _research_objects[i].load();
+            if (inst) {
+                PX4_INFO("stopping research ekf2 instance %d", i);
+                was_running = true;
+                inst->request_stop();
+                px4_usleep(20000); // 20 ms
+                delete inst;
+                _research_objects[i].store(nullptr);
+            }
+        }
 
-			if (!was_running) {
-				PX4_WARN("not running");
-			}
-		}
+        _research_instance_count.store(0);
 
-		EKF2::unlock_module();
-		return PX4_OK;
+        if (!was_running) {
+            PX4_WARN("not running");
+        }
+    }
+
+    EKF2::unlock_module();
+    return PX4_OK;
 	}
 
 	EKF2::lock_module(); // Lock here, as the method could access _object.
