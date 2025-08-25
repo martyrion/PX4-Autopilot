@@ -45,8 +45,6 @@ static constexpr float kMaxDelaySecondsExternalPosMeasurement = 15.0f; // [s]
 
 pthread_mutex_t ekf2_module_mutex = PTHREAD_MUTEX_INITIALIZER;
 static px4::atomic<EKF2 *> _objects[EKF2_MAX_INSTANCES] {};
-static px4::atomic<EKF2 *> _research_objects[EKF2_MAX_INSTANCES] {};
-static px4::atomic<int> _research_instance_count{0};
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
 static px4::atomic<EKF2Selector *> _ekf2_selector {nullptr};
 #endif // CONFIG_EKF2_MULTI_INSTANCE
@@ -81,39 +79,39 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_noaid_noise(_params->pos_noaid_noise),
 #if defined(CONFIG_EKF2_GNSS)
 	_param_ekf2_gps_ctrl(_params->gnss_ctrl),
-	_param_ekfr_1_gps_ctrl(_params->gnss_ctrl_r1), /// Dimitris
-	_param_ekfr_2_gps_ctrl(_params->gnss_ctrl_r2), /// Dimitris
-	_param_ekfr_3_gps_ctrl(_params->gnss_ctrl_r3), /// Dimitris
+
+	/// Dimitris custom GPS Ctr
+	_param_ekfr_1_gps_ctrl(_params->gnss_ctrl_r1),
+	_param_ekfr_2_gps_ctrl(_params->gnss_ctrl_r2),
+	_param_ekfr_3_gps_ctrl(_params->gnss_ctrl_r3),
 	_param_ekf2_gps_delay(_params->gps_delay_ms),
+
 	_param_ekf2_gps_pos_x(_params->gps_pos_body(0)),
 	_param_ekf2_gps_pos_y(_params->gps_pos_body(1)),
 	_param_ekf2_gps_pos_z(_params->gps_pos_body(2)),
 
-	_param_ekfr_1_gps_pos_x(_params->gps_pos_body_r1(0)), /// Dimitris
-	_param_ekfr_1_gps_pos_y(_params->gps_pos_body_r1(1)), /// Dimitris
-	_param_ekfr_1_gps_pos_z(_params->gps_pos_body_r1(2)),  /// Dimitris
-
-	_param_ekfr_2_gps_pos_x(_params->gps_pos_body_r2(0)), /// Dimitris
-	_param_ekfr_2_gps_pos_y(_params->gps_pos_body_r2(1)), /// Dimitris
-	_param_ekfr_2_gps_pos_z(_params->gps_pos_body_r2(2)), /// Dimitris
-
-	_param_ekfr_3_gps_pos_x(_params->gps_pos_body_r3(0)), /// Dimitris
-	_param_ekfr_3_gps_pos_y(_params->gps_pos_body_r3(1)), /// Dimitris
-	_param_ekfr_3_gps_pos_z(_params->gps_pos_body_r3(2)), /// Dimitris
+	/// Dimitris custom GPS positions
+	_param_ekfr_1_gps_pos_x(_params->gps_pos_body_r1(0)),
+	_param_ekfr_1_gps_pos_y(_params->gps_pos_body_r1(1)),
+	_param_ekfr_1_gps_pos_z(_params->gps_pos_body_r1(2)),
+	_param_ekfr_2_gps_pos_x(_params->gps_pos_body_r2(0)),
+	_param_ekfr_2_gps_pos_y(_params->gps_pos_body_r2(1)),
+	_param_ekfr_2_gps_pos_z(_params->gps_pos_body_r2(2)),
+	_param_ekfr_3_gps_pos_x(_params->gps_pos_body_r3(0)),
+	_param_ekfr_3_gps_pos_y(_params->gps_pos_body_r3(1)),
+	_param_ekfr_3_gps_pos_z(_params->gps_pos_body_r3(2)),
 
 
 	_param_ekf2_gps_v_noise(_params->gps_vel_noise),
 	_param_ekf2_gps_p_noise(_params->gps_pos_noise),
 
-	_param_ekfr_1_gps_v_n(_params->gps_vel_noise_r1), /// Dimitris
-	_param_ekfr_1_gps_p_n(_params->gps_pos_noise_r1), /// Dimitris
-
-	_param_ekfr_2_gps_v_n(_params->gps_vel_noise_r2), /// Dimitris
-	_param_ekfr_2_gps_p_n(_params->gps_pos_noise_r2), /// Dimitris
-
-	_param_ekfr_3_gps_v_n(_params->gps_vel_noise_r3), /// Dimitris
-	_param_ekfr_3_gps_p_n(_params->gps_pos_noise_r3), /// Dimitris
-
+	/// Dimitris custom GPS V/P noise
+	_param_ekfr_1_gps_v_n(_params->gps_vel_noise_r1),
+	_param_ekfr_1_gps_p_n(_params->gps_pos_noise_r1),
+	_param_ekfr_2_gps_v_n(_params->gps_vel_noise_r2),
+	_param_ekfr_2_gps_p_n(_params->gps_pos_noise_r2),
+	_param_ekfr_3_gps_v_n(_params->gps_vel_noise_r3),
+	_param_ekfr_3_gps_p_n(_params->gps_pos_noise_r3),
 
 	_param_ekf2_gps_p_gate(_params->gps_pos_innov_gate),
 	_param_ekf2_gps_v_gate(_params->gps_vel_innov_gate),
@@ -174,7 +172,7 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_hgt_ref(_params->height_sensor_ref),
 	_param_ekfr_1_hgt_ref(_params->height_sensor_ref_r1), /// Dimitris
 	_param_ekfr_2_hgt_ref(_params->height_sensor_ref_r2), /// Dimitris
-	_param_ekfr_3_hgt_ref(_params->height_sensor_ref_r3), /// Dimitris
+	_param_ekfr_3_hgt_ref(_params->height_sensor_ref_r2), /// Dimitris
 	_param_ekf2_noaid_tout(_params->valid_timeout_max),
 #if defined(CONFIG_EKF2_TERRAIN) || defined(CONFIG_EKF2_OPTICAL_FLOW) || defined(CONFIG_EKF2_RANGE_FINDER)
 	_param_ekf2_min_rng(_params->rng_gnd_clearance),
@@ -184,21 +182,21 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_terr_noise(_params->terrain_p_noise),
 	_param_ekf2_terr_grad(_params->terrain_gradient),
 #endif // CONFIG_EKF2_TERRAIN
-#if defined(CONFIG_EKF2_RANGE_FINDER) /// Dimitris commented out due to max
-	// _param_ekf2_rng_ctrl(_params->rng_ctrl),
-	// _param_ekf2_rng_delay(_params->range_delay_ms),
-	// _param_ekf2_rng_noise(_params->range_noise),
-	// _param_ekf2_rng_sfe(_params->range_noise_scaler),
-	// _param_ekf2_rng_gate(_params->range_innov_gate),
-	// _param_ekf2_rng_pitch(_params->rng_sens_pitch),
-	// _param_ekf2_rng_a_vmax(_params->max_vel_for_range_aid),
-	// _param_ekf2_rng_a_hmax(_params->max_hagl_for_range_aid),
-	// _param_ekf2_rng_a_igate(_params->range_aid_innov_gate),
-	// _param_ekf2_rng_qlty_t(_params->range_valid_quality_s),
-	// _param_ekf2_rng_k_gate(_params->range_kin_consistency_gate),
-	// _param_ekf2_rng_pos_x(_params->rng_pos_body(0)),
-	// _param_ekf2_rng_pos_y(_params->rng_pos_body(1)),
-	// _param_ekf2_rng_pos_z(_params->rng_pos_body(2)),
+#if defined(CONFIG_EKF2_RANGE_FINDER)
+	_param_ekf2_rng_ctrl(_params->rng_ctrl),
+	_param_ekf2_rng_delay(_params->range_delay_ms),
+	_param_ekf2_rng_noise(_params->range_noise),
+	_param_ekf2_rng_sfe(_params->range_noise_scaler),
+	_param_ekf2_rng_gate(_params->range_innov_gate),
+	_param_ekf2_rng_pitch(_params->rng_sens_pitch),
+	_param_ekf2_rng_a_vmax(_params->max_vel_for_range_aid),
+	_param_ekf2_rng_a_hmax(_params->max_hagl_for_range_aid),
+	_param_ekf2_rng_a_igate(_params->range_aid_innov_gate),
+	_param_ekf2_rng_qlty_t(_params->range_valid_quality_s),
+	_param_ekf2_rng_k_gate(_params->range_kin_consistency_gate),
+	_param_ekf2_rng_pos_x(_params->rng_pos_body(0)),
+	_param_ekf2_rng_pos_y(_params->rng_pos_body(1)),
+	_param_ekf2_rng_pos_z(_params->rng_pos_body(2)),
 #endif // CONFIG_EKF2_RANGE_FINDER
 #if defined(CONFIG_EKF2_EXTERNAL_VISION)
 	_param_ekf2_ev_delay(_params->ev_delay_ms),
@@ -354,13 +352,13 @@ bool EKF2::multi_init(int imu, int mag)
 
 #endif // CONFIG_EKF2_GRAVITY_FUSION
 
-#if defined(CONFIG_EKF2_RANGE_FINDER) /// Dimitris commented out due to max params
+#if defined(CONFIG_EKF2_RANGE_FINDER)
 
 	// RNG advertise
-	// if (_param_ekf2_rng_ctrl.get()) {
-	// 	_estimator_aid_src_rng_hgt_pub.advertise();
-	// 	_estimator_rng_hgt_bias_pub.advertise();
-	// }
+	if (_param_ekf2_rng_ctrl.get()) {
+		_estimator_aid_src_rng_hgt_pub.advertise();
+		_estimator_rng_hgt_bias_pub.advertise();
+	}
 
 #endif // CONFIG_EKF2_RANGE_FINDER
 
@@ -410,7 +408,6 @@ bool EKF2::multi_init(int imu, int mag)
 
 	return false;
 }
-
 #endif // CONFIG_EKF2_MULTI_INSTANCE
 
 int EKF2::print_status(bool verbose)
@@ -430,10 +427,6 @@ int EKF2::print_status(bool verbose)
 
 	return 0;
 }
-
-
-
-
 
 void EKF2::Run()
 {
@@ -466,109 +459,48 @@ void EKF2::Run()
 
 
 // Dimitris
-		// In EKF2::Run() method, replace the research instance parameter section with:
-
 		if (isResearchInstance()) {
 			int research_id = getResearchInstanceId();
+
 			PX4_INFO("Research instance %d (ID %d): Applying custom parameters", _instance, research_id);
 
-			// Arrays for all custom parameters based on research instance ID
-			// Height reference (int32_t values)
-			int32_t height_refs[] = {
-				_param_ekfr_1_hgt_ref.get(),
-				_param_ekfr_2_hgt_ref.get(),
-				_param_ekfr_3_hgt_ref.get()
-			};
-
-			// GNSS control (int32_t values)
-			int32_t gnss_ctrls[] = {
-				_param_ekfr_1_gps_ctrl.get(),
-				_param_ekfr_2_gps_ctrl.get(),
-				_param_ekfr_3_gps_ctrl.get()
-			};
-
-			// GPS velocity noise (float values)
-			float gps_v_noise[] = {
-				_param_ekfr_1_gps_v_n.get(),
-				_param_ekfr_2_gps_v_n.get(),
-				_param_ekfr_3_gps_v_n.get()
-			};
-
-			// GPS position noise (float values)
-			float gps_p_noise[] = {
-				_param_ekfr_1_gps_p_n.get(),
-				_param_ekfr_2_gps_p_n.get(),
-				_param_ekfr_3_gps_p_n.get()
-			};
-
-			// GPS position X (float values)
-			float gps_pos_x[] = {
-				_param_ekfr_1_gps_pos_x.get(),
-				_param_ekfr_2_gps_pos_x.get(),
-				_param_ekfr_3_gps_pos_x.get()
-			};
-
-			// GPS position Y (float values)
-			float gps_pos_y[] = {
-				_param_ekfr_1_gps_pos_y.get(),
-				_param_ekfr_2_gps_pos_y.get(),
-				_param_ekfr_3_gps_pos_y.get()
-			};
-
-			// GPS position Z (float values)
-			float gps_pos_z[] = {
-				_param_ekfr_1_gps_pos_z.get(),
-				_param_ekfr_2_gps_pos_z.get(),
-				_param_ekfr_3_gps_pos_z.get()
-			};
-
-			// GPS source selection (uint8_t values)
-			uint8_t gps_sources[] = {
-				(uint8_t)_param_ekfr_1_gps_src.get(),
-				(uint8_t)_param_ekfr_2_gps_src.get(),
-				(uint8_t)_param_ekfr_3_gps_src.get()
-			};
-
-			if (research_id >= 0 && research_id < 3) {
-				// Log current values before applying changes
-				PX4_INFO("  Before applying research params:");
-				PX4_INFO("    height_ref=%d, gnss_ctrl=%d",
+			switch (research_id) {
+			case 0:
+				PX4_INFO("  Before: height_ref=%d, gnss_ctrl=%d",
 					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
-				PX4_INFO("    gps_vel_noise=%.3f, gps_pos_noise=%.3f",
-					 (double)_params->gps_vel_noise, (double)_params->gps_pos_noise);
-				PX4_INFO("    gps_pos_body=(%.3f, %.3f, %.3f)",
-					 (double)_params->gps_pos_body(0), (double)_params->gps_pos_body(1),
-					 (double)_params->gps_pos_body(2));
-				PX4_INFO("    current_gps_instance=%d", _current_gps_instance);
-
-				// Apply all custom parameters for this research instance
-				_params->height_sensor_ref = height_refs[research_id];
-				_params->gnss_ctrl = gnss_ctrls[research_id];
-				_params->gps_vel_noise = gps_v_noise[research_id];
-				_params->gps_pos_noise = gps_p_noise[research_id];
-				_params->gps_pos_body(0) = gps_pos_x[research_id];
-				_params->gps_pos_body(1) = gps_pos_y[research_id];
-				_params->gps_pos_body(2) = gps_pos_z[research_id];
-				_current_gps_instance = gps_sources[research_id];
-
-				// Log new values after applying changes
-				PX4_INFO("  After applying research params:");
-				PX4_INFO("    height_ref=%d, gnss_ctrl=%d",
+				_params->height_sensor_ref = _param_ekfr_1_hgt_ref.get();
+				_params->gnss_ctrl = _param_ekfr_1_gps_ctrl.get();
+				_params->gps_vel_noise = _param_ekfr_1_gps_v_n.get();
+				_params->gps_vel_noise = _param_ekfr_1_gps_p_n.get();
+				PX4_INFO("  After: height_ref=%d, gnss_ctrl=%d",
 					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
-				PX4_INFO("    gps_vel_noise=%.3f, gps_pos_noise=%.3f",
-					 (double)_params->gps_vel_noise, (double)_params->gps_pos_noise);
-				PX4_INFO("    gps_pos_body=(%.3f, %.3f, %.3f)",
-					 (double)_params->gps_pos_body(0), (double)_params->gps_pos_body(1),
-					 (double)_params->gps_pos_body(2));
-				PX4_INFO("    current_gps_instance=%d", _current_gps_instance);
+				break;
 
-			} else {
-				PX4_WARN("Research instance ID %d out of range (0-2)", research_id);
+			case 1:
+				PX4_INFO("  Before: height_ref=%d, gnss_ctrl=%d",
+					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
+				_params->height_sensor_ref = _param_ekfr_2_hgt_ref.get();
+				_params->gnss_ctrl = _param_ekfr_2_gps_ctrl.get();
+				_params->gps_vel_noise = _param_ekfr_2_gps_v_n.get();
+				_params->gps_vel_noise = _param_ekfr_2_gps_p_n.get();
+				PX4_INFO("  After: height_ref=%d, gnss_ctrl=%d",
+					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
+				break;
+
+			case 2:
+				PX4_INFO("  Before: height_ref=%d, gnss_ctrl=%d",
+					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
+				_params->height_sensor_ref = _param_ekfr_3_hgt_ref.get();
+				_params->gnss_ctrl = _param_ekfr_3_gps_ctrl.get();
+				_params->gps_vel_noise = _param_ekfr_3_gps_v_n.get();
+				_params->gps_vel_noise = _param_ekfr_3_gps_p_n.get();
+				PX4_INFO("  After: height_ref=%d, gnss_ctrl=%d",
+					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
+				break;
 			}
 
 		} else {
 			PX4_INFO("Instance %d: Using standard parameters", _instance);
-			_current_gps_instance = 0; // Standard instance uses GPS 0
 		}
 
 		VerifyParams();
@@ -974,11 +906,11 @@ void EKF2::VerifyParams()
 
 #endif // CONFIG_EKF2_MAGNETOMETER
 
-#if defined(CONFIG_EKF2_RANGE_FINDER) /// Dimitris commented out due to max params
+#if defined(CONFIG_EKF2_RANGE_FINDER)
 
-	// if (_param_ekf2_rng_delay.get() > delay_max) {
-	// 	delay_max = _param_ekf2_rng_delay.get();
-	// }
+	if (_param_ekf2_rng_delay.get() > delay_max) {
+		delay_max = _param_ekf2_rng_delay.get();
+	}
 
 #endif // CONFIG_EKF2_RANGE_FINDER
 
@@ -2549,22 +2481,7 @@ void EKF2::UpdateGpsSample(ekf2_timestamps_s &ekf2_timestamps)
 	// EKF GPS message
 	sensor_gps_s vehicle_gps_position;
 
-	// Safety check: ensure normal instances always use GPS 0
-	if (!isResearchInstance() && _current_gps_instance != 0) {
-		PX4_WARN("Normal instance %d had non-zero GPS instance %d, forcing to 0",
-			 _instance, _current_gps_instance);
-		_current_gps_instance = 0;
-	}
-
-	// Validate GPS instance bounds
-	if (_current_gps_instance >= _vehicle_gps_position_subs.size()) {
-		PX4_ERR("Instance %d: GPS instance %d out of bounds, using GPS 0",
-			_instance, _current_gps_instance);
-		_current_gps_instance = 0;
-	}
-
-	// Use the configured GPS instance
-	if (_vehicle_gps_position_subs[_current_gps_instance].update(&vehicle_gps_position)) {
+	if (_vehicle_gps_position_sub.update(&vehicle_gps_position)) {
 
 		Vector3f vel_ned;
 
@@ -2576,15 +2493,6 @@ void EKF2::UpdateGpsSample(ekf2_timestamps_s &ekf2_timestamps)
 		} else {
 			return; //TODO: change and set to NAN
 		}
-
-
-		// Debug logging (print only once per instance)
-		if (isResearchInstance() && !_debug_gps_logged) {
-			PX4_INFO("Research instance %d (ID %d) consuming GPS%d data",
-				 _instance, getResearchInstanceId(), _current_gps_instance);
-			_debug_gps_logged = true;
-		}
-
 
 		gnssSample gnss_sample{
 			.time_us = vehicle_gps_position.timestamp,
@@ -2610,7 +2518,6 @@ void EKF2::UpdateGpsSample(ekf2_timestamps_s &ekf2_timestamps)
 		_gps_alttitude_ellipsoid = static_cast<int32_t>(round(vehicle_gps_position.altitude_ellipsoid_m * 1e3));
 	}
 }
-
 #endif // CONFIG_EKF2_GNSS
 
 #if defined(CONFIG_EKF2_MAGNETOMETER)
@@ -2902,7 +2809,7 @@ bool EKF2::createResearchInstances(int num_research_instances, int default_imu_i
 
 	PX4_INFO("Primary instance will use IMU %d, MAG %d", (int)primary_imu_idx, (int)primary_mag_idx);
 
-	// Create primary instance (goes to normal _objects array)
+	// Create primary instance
 	EKF2 *ekf2_primary = new EKF2(true, px4::ins_instance_to_wq(primary_imu_idx), false);
 
 	if (ekf2_primary && ekf2_primary->multi_init(primary_imu_idx, primary_mag_idx)) {
@@ -2921,34 +2828,29 @@ bool EKF2::createResearchInstances(int num_research_instances, int default_imu_i
 			param_t param_ekfr_2_mag = param_find("EKFR_2_MAG");
 			param_t param_ekfr_3_mag = param_find("EKFR_3_MAG");
 
-			int32_t research_imu_indices[3] = {0, 0, 0}; // default to IMU 0
-			int32_t research_mag_indices[3] = {0, 0, 0}; // default to MAG 0
+			int32_t research_imu_indices[4] = {0, 0, 0, 0}; // default to IMU 0 for all instances
+			int32_t research_mag_indices[4] = {0, 0, 0, 0}; // default to MAG 0 for all instances
 
 			if (param_ekfr_1_imu != PARAM_INVALID) {
-				param_get(param_ekfr_1_imu, &research_imu_indices[0]);
-			}
+    param_get(param_ekfr_1_imu, &research_imu_indices[0]);
+}
+if (param_ekfr_2_imu != PARAM_INVALID) {
+    param_get(param_ekfr_2_imu, &research_imu_indices[1]);
+}
+if (param_ekfr_3_imu != PARAM_INVALID) {
+    param_get(param_ekfr_3_imu, &research_imu_indices[2]);
+}
+if (param_ekfr_1_mag != PARAM_INVALID) {
+    param_get(param_ekfr_1_mag, &research_mag_indices[0]);
+}
+if (param_ekfr_2_mag != PARAM_INVALID) {
+    param_get(param_ekfr_2_mag, &research_mag_indices[1]);
+}
+if (param_ekfr_3_mag != PARAM_INVALID) {
+    param_get(param_ekfr_3_mag, &research_mag_indices[2]);
+}
 
-			if (param_ekfr_2_imu != PARAM_INVALID) {
-				param_get(param_ekfr_2_imu, &research_imu_indices[1]);
-			}
-
-			if (param_ekfr_3_imu != PARAM_INVALID) {
-				param_get(param_ekfr_3_imu, &research_imu_indices[2]);
-			}
-
-			if (param_ekfr_1_mag != PARAM_INVALID) {
-				param_get(param_ekfr_1_mag, &research_mag_indices[0]);
-			}
-
-			if (param_ekfr_2_mag != PARAM_INVALID) {
-				param_get(param_ekfr_2_mag, &research_mag_indices[1]);
-			}
-
-			if (param_ekfr_3_mag != PARAM_INVALID) {
-				param_get(param_ekfr_3_mag, &research_mag_indices[2]);
-			}
-
-			// Create research instances - store in separate array
+			// Create research instances
 			for (int research_id = 0; research_id < num_research_instances; research_id++) {
 				int imu_idx = research_imu_indices[research_id];
 				int mag_idx = research_mag_indices[research_id];
@@ -2963,16 +2865,15 @@ bool EKF2::createResearchInstances(int num_research_instances, int default_imu_i
 					ekf2_research->setAsResearchInstance(true, research_id);
 
 					if (ekf2_research->multi_init(imu_idx, mag_idx)) {
-						// Store in research array instead of main objects array
-						if (research_id < EKF2_MAX_INSTANCES && _research_objects[research_id].load() == nullptr) {
-							_research_objects[research_id].store(ekf2_research);
-							_research_instance_count.fetch_add(1);
+						int research_instance = ekf2_research->instance();
 
-							PX4_INFO("Research instance %d stored in research array slot %d with IMU %d, MAG %d",
-								 ekf2_research->instance(), research_id, imu_idx, mag_idx);
+						if ((research_instance >= 0) && (_objects[research_instance].load() == nullptr)) {
+							_objects[research_instance].store(ekf2_research);
+							PX4_INFO("Research instance %d (research ID %d) created with IMU %d, MAG %d",
+								 research_instance, research_id, imu_idx, mag_idx);
 
 						} else {
-							PX4_ERR("Research array slot %d already occupied or invalid", research_id);
+							PX4_ERR("Research instance numbering problem: %d", research_instance);
 							delete ekf2_research;
 							success = false;
 							break;
@@ -3011,7 +2912,6 @@ bool EKF2::createResearchInstances(int num_research_instances, int default_imu_i
 
 	return success;
 }
-
 #endif // CONFIG_EKF2_MULTI_INSTANCE
 
 
@@ -3107,6 +3007,8 @@ int EKF2::task_spawn(int argc, char *argv[])
 				return PX4_ERROR;
 			}
 		}
+
+
 
 		// NOTE: Research mode with different magnetometers requires SENS_MAG_MODE=0
 		// This enables proper magnetometer instance selection for multi-instance EKF
@@ -3288,132 +3190,90 @@ extern "C" __EXPORT int ekf2_main(int argc, char *argv[])
 		return 0;
 #endif // CONFIG_EKF2_MULTI_INSTANCE
 	} else if (strcmp(argv[1], "status") == 0) {
-    if (EKF2::trylock_module()) {
+		if (EKF2::trylock_module()) {
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
-        if (_ekf2_selector.load()) {
-            _ekf2_selector.load()->PrintStatus();
-        }
+			if (_ekf2_selector.load()) {
+				_ekf2_selector.load()->PrintStatus();
+			}
 #endif // CONFIG_EKF2_MULTI_INSTANCE
 
-        bool verbose_status = false;
+			bool verbose_status = false;
 
 #if defined(CONFIG_EKF2_VERBOSE_STATUS)
-        if (argc > 2 && (strcmp(argv[2], "-v") == 0)) {
-            verbose_status = true;
-        }
+			if (argc > 2 && (strcmp(argv[2], "-v") == 0)) {
+				verbose_status = true;
+			}
 #endif // CONFIG_EKF2_VERBOSE_STATUS
 
-        // Print standard instances
-        PX4_INFO_RAW("\n=== Standard EKF Instances ===");
-        for (int i = 0; i < EKF2_MAX_INSTANCES; i++) {
-            if (_objects[i].load()) {
-                PX4_INFO_RAW("\n");
-                _objects[i].load()->print_status(verbose_status);
-            }
-        }
+			for (int i = 0; i < EKF2_MAX_INSTANCES; i++) {
+				if (_objects[i].load()) {
+					PX4_INFO_RAW("\n");
+					_objects[i].load()->print_status(verbose_status);
+				}
+			}
 
-        // Print research instances
-        int research_count = _research_instance_count.load();
-        if (research_count > 0) {
-            PX4_INFO_RAW("\n=== Research EKF Instances ===");
-            for (int i = 0; i < EKF2_MAX_INSTANCES; i++) {
-                if (_research_objects[i].load()) {
-                    PX4_INFO_RAW("\n");
-                    _research_objects[i].load()->print_status(verbose_status);
-                }
-            }
-        }
+			EKF2::unlock_module();
 
-        EKF2::unlock_module();
+		} else {
+			PX4_WARN("module locked, try again later");
+		}
 
-    } else {
-        PX4_WARN("module locked, try again later");
-    }
-
-    return 0;
+		return 0;
 
 	} else if (strcmp(argv[1], "stop") == 0) {
-    EKF2::lock_module();
+		EKF2::lock_module();
 
-    if (argc > 2) {
-        int instance = atoi(argv[2]);
+		if (argc > 2) {
+			int instance = atoi(argv[2]);
 
-        if (instance >= 0 && instance < EKF2_MAX_INSTANCES) {
-            // Check if it's a standard instance
-            EKF2 *inst = _objects[instance].load();
-            if (inst) {
-                PX4_INFO("stopping standard instance %d", instance);
-                inst->request_stop();
-                px4_usleep(20000); // 20 ms
-                delete inst;
-                _objects[instance].store(nullptr);
-            } else {
-                // Check research instances
-                inst = _research_objects[instance].load();
-                if (inst) {
-                    PX4_INFO("stopping research instance %d", instance);
-                    inst->request_stop();
-                    px4_usleep(20000); // 20 ms
-                    delete inst;
-                    _research_objects[instance].store(nullptr);
-                    _research_instance_count.fetch_sub(1);
-                } else {
-                    PX4_ERR("instance %d not found", instance);
-                }
-            }
-        } else {
-            PX4_ERR("invalid instance %d", instance);
-        }
+			if (instance >= 0 && instance < EKF2_MAX_INSTANCES) {
+				PX4_INFO("stopping instance %d", instance);
+				EKF2 *inst = _objects[instance].load();
 
-    } else {
-        // Stop everything
-        bool was_running = false;
+				if (inst) {
+					inst->request_stop();
+					px4_usleep(20000); // 20 ms
+					delete inst;
+					_objects[instance].store(nullptr);
+				}
+			} else {
+				PX4_ERR("invalid instance %d", instance);
+			}
+
+		} else {
+			// otherwise stop everything
+			bool was_running = false;
 
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
-        if (_ekf2_selector.load()) {
-            PX4_INFO("stopping ekf2 selector");
-            _ekf2_selector.load()->Stop();
-            delete _ekf2_selector.load();
-            _ekf2_selector.store(nullptr);
-            was_running = true;
-        }
+			if (_ekf2_selector.load()) {
+				PX4_INFO("stopping ekf2 selector");
+				_ekf2_selector.load()->Stop();
+				delete _ekf2_selector.load();
+				_ekf2_selector.store(nullptr);
+				was_running = true;
+			}
 #endif // CONFIG_EKF2_MULTI_INSTANCE
 
-        // Stop standard instances
-        for (int i = 0; i < EKF2_MAX_INSTANCES; i++) {
-            EKF2 *inst = _objects[i].load();
-            if (inst) {
-                PX4_INFO("stopping standard ekf2 instance %d", i);
-                was_running = true;
-                inst->request_stop();
-                px4_usleep(20000); // 20 ms
-                delete inst;
-                _objects[i].store(nullptr);
-            }
-        }
+			for (int i = 0; i < EKF2_MAX_INSTANCES; i++) {
+				EKF2 *inst = _objects[i].load();
 
-        // Stop research instances
-        for (int i = 0; i < EKF2_MAX_INSTANCES; i++) {
-            EKF2 *inst = _research_objects[i].load();
-            if (inst) {
-                PX4_INFO("stopping research ekf2 instance %d", i);
-                was_running = true;
-                inst->request_stop();
-                px4_usleep(20000); // 20 ms
-                delete inst;
-                _research_objects[i].store(nullptr);
-            }
-        }
+				if (inst) {
+					PX4_INFO("stopping ekf2 instance %d", i);
+					was_running = true;
+					inst->request_stop();
+					px4_usleep(20000); // 20 ms
+					delete inst;
+					_objects[i].store(nullptr);
+				}
+			}
 
-        _research_instance_count.store(0);
+			if (!was_running) {
+				PX4_WARN("not running");
+			}
+		}
 
-        if (!was_running) {
-            PX4_WARN("not running");
-        }
-    }
-
-    EKF2::unlock_module();
-    return PX4_OK;
+		EKF2::unlock_module();
+		return PX4_OK;
 	}
 
 	EKF2::lock_module(); // Lock here, as the method could access _object.

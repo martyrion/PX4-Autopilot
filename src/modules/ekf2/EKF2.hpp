@@ -162,7 +162,6 @@ private:
 	// Helper method to determine if this is a research instance
 	// Dimitris
 	// START OF BLOCK
-	bool _debug_gps_logged{false};
 
 	bool _force_research{false};
 	int _research_instance_id{-1}; // -1 = not research, 0+ = research instance ID
@@ -191,7 +190,6 @@ private:
 			 _force_research ? "true" : "false", _research_instance_id);
 	}
 	// END OF BLOCK
-
 
 	static constexpr uint8_t MAX_NUM_IMUS = 4;
 	static constexpr uint8_t MAX_NUM_MAGS = 4;
@@ -505,9 +503,7 @@ private:
 
 	float _last_gnss_hgt_bias_published{};
 
-	// uORB::Subscription _vehicle_gps_position_sub{ORB_ID(vehicle_gps_position)};
-	uORB::SubscriptionMultiArray<sensor_gps_s> _vehicle_gps_position_subs{ORB_ID::sensor_gps};
-	uint8_t _current_gps_instance{0};
+	uORB::Subscription _vehicle_gps_position_sub{ORB_ID(vehicle_gps_position)};
 
 	uORB::PublicationMulti<estimator_bias_s> _estimator_gnss_hgt_bias_pub{ORB_ID(estimator_gnss_hgt_bias)};
 	uORB::PublicationMulti<estimator_gps_status_s> _estimator_gps_status_pub{ORB_ID(estimator_gps_status)};
@@ -546,7 +542,7 @@ private:
 		(ParamInt<px4::params::EKFR_MAG_PRIMARY>) _param_ekfr_mag_primary,  ///< MAG instanc
 		(ParamInt<px4::params::EKFR_1_IMU>) _param_ekfr_1_imu,    ///< IMU instance for research EKF 1
 		(ParamInt<px4::params::EKFR_2_IMU>) _param_ekfr_2_imu,    ///< IMU instance for research EKF 2
-		(ParamInt<px4::params::EKFR_3_IMU>) _param_ekfr_3_imu,    ///< IMU instance for research EKF 2
+		(ParamInt<px4::params::EKFR_3_IMU>) _param_ekfr_3_imu,    ///< IMU instance for research EKF 3
 		(ParamInt<px4::params::EKFR_1_MAG>) _param_ekfr_1_mag,    ///< MAG instance for research EKF 1
 		(ParamInt<px4::params::EKFR_2_MAG>) _param_ekfr_2_mag,    ///< MAG instance for research EKF 2
 		(ParamInt<px4::params::EKFR_3_MAG>) _param_ekfr_3_mag,    ///< MAG instance for research EKF 2
@@ -577,9 +573,11 @@ private:
 
 #if defined(CONFIG_EKF2_GNSS)
 		(ParamExtInt<px4::params::EKF2_GPS_CTRL>) _param_ekf2_gps_ctrl,
-		(ParamExtInt<px4::params::EKFR_1_GPS_CTRL>) _param_ekfr_1_gps_ctrl, /// Dimitris
-		(ParamExtInt<px4::params::EKFR_2_GPS_CTRL>) _param_ekfr_2_gps_ctrl, /// Dimitris
-		(ParamExtInt<px4::params::EKFR_3_GPS_CTRL>) _param_ekfr_3_gps_ctrl, /// Dimitris
+
+		 /// Dimitris Custom GPS CTRL
+		(ParamExtInt<px4::params::EKFR_1_GPS_CTRL>) _param_ekfr_1_gps_ctrl,
+		(ParamExtInt<px4::params::EKFR_2_GPS_CTRL>) _param_ekfr_2_gps_ctrl,
+		(ParamExtInt<px4::params::EKFR_3_GPS_CTRL>) _param_ekfr_3_gps_ctrl,
 
 		(ParamExtFloat<px4::params::EKF2_GPS_DELAY>) _param_ekf2_gps_delay,
 
@@ -587,36 +585,28 @@ private:
 		(ParamExtFloat<px4::params::EKF2_GPS_POS_Y>) _param_ekf2_gps_pos_y,
 		(ParamExtFloat<px4::params::EKF2_GPS_POS_Z>) _param_ekf2_gps_pos_z,
 
-		(ParamExtFloat<px4::params::EKFR_1_GPS_POS_X>) _param_ekfr_1_gps_pos_x, /// Dimitris
-		(ParamExtFloat<px4::params::EKFR_1_GPS_POS_Y>) _param_ekfr_1_gps_pos_y, /// Dimitris
-		(ParamExtFloat<px4::params::EKFR_1_GPS_POS_Z>) _param_ekfr_1_gps_pos_z, /// Dimitris
 
-		(ParamExtFloat<px4::params::EKFR_2_GPS_POS_X>) _param_ekfr_2_gps_pos_x, /// Dimitris
-		(ParamExtFloat<px4::params::EKFR_2_GPS_POS_Y>) _param_ekfr_2_gps_pos_y, /// Dimitris
-		(ParamExtFloat<px4::params::EKFR_2_GPS_POS_Z>) _param_ekfr_2_gps_pos_z, /// Dimitris
-
-		(ParamExtFloat<px4::params::EKFR_3_GPS_POS_X>) _param_ekfr_3_gps_pos_x, /// Dimitris
-		(ParamExtFloat<px4::params::EKFR_3_GPS_POS_Y>) _param_ekfr_3_gps_pos_y, /// Dimitris
-		(ParamExtFloat<px4::params::EKFR_3_GPS_POS_Z>) _param_ekfr_3_gps_pos_z, /// Dimitris
-
-		// GPS source selection parameters for research instances
-		(ParamInt<px4::params::EKFR_1_GPS_SRC>) _param_ekfr_1_gps_src,
-		(ParamInt<px4::params::EKFR_2_GPS_SRC>) _param_ekfr_2_gps_src,
-		(ParamInt<px4::params::EKFR_3_GPS_SRC>) _param_ekfr_3_gps_src,
-
+		/// Dimitris
+		(ParamExtFloat<px4::params::EKFR_1_GPS_POS_X>) _param_ekfr_1_gps_pos_x,
+		(ParamExtFloat<px4::params::EKFR_1_GPS_POS_Y>) _param_ekfr_1_gps_pos_y,
+		(ParamExtFloat<px4::params::EKFR_1_GPS_POS_Z>) _param_ekfr_1_gps_pos_z,
+		(ParamExtFloat<px4::params::EKFR_2_GPS_POS_X>) _param_ekfr_2_gps_pos_x,
+		(ParamExtFloat<px4::params::EKFR_2_GPS_POS_Y>) _param_ekfr_2_gps_pos_y,
+		(ParamExtFloat<px4::params::EKFR_2_GPS_POS_Z>) _param_ekfr_2_gps_pos_z,
+		(ParamExtFloat<px4::params::EKFR_3_GPS_POS_X>) _param_ekfr_3_gps_pos_x,
+		(ParamExtFloat<px4::params::EKFR_3_GPS_POS_Y>) _param_ekfr_3_gps_pos_y,
+		(ParamExtFloat<px4::params::EKFR_3_GPS_POS_Z>) _param_ekfr_3_gps_pos_z,
 
 		(ParamExtFloat<px4::params::EKF2_GPS_V_NOISE>) _param_ekf2_gps_v_noise,
 		(ParamExtFloat<px4::params::EKF2_GPS_P_NOISE>) _param_ekf2_gps_p_noise,
 
+		/// Dimitris Custom GPS V/P control
 		(ParamExtFloat<px4::params::EKFR_1_GPS_V_N>) _param_ekfr_1_gps_v_n,
 		(ParamExtFloat<px4::params::EKFR_1_GPS_P_N>) _param_ekfr_1_gps_p_n,
-
 		(ParamExtFloat<px4::params::EKFR_2_GPS_V_N>) _param_ekfr_2_gps_v_n,
 		(ParamExtFloat<px4::params::EKFR_2_GPS_P_N>) _param_ekfr_2_gps_p_n,
-
 		(ParamExtFloat<px4::params::EKFR_3_GPS_V_N>) _param_ekfr_3_gps_v_n,
 		(ParamExtFloat<px4::params::EKFR_3_GPS_P_N>) _param_ekfr_3_gps_p_n,
-
 
 		(ParamExtFloat<px4::params::EKF2_GPS_P_GATE>) _param_ekf2_gps_p_gate,
 		(ParamExtFloat<px4::params::EKF2_GPS_V_GATE>) _param_ekf2_gps_v_gate,
@@ -633,6 +623,12 @@ private:
 
 		// Used by EKF-GSF experimental yaw estimator
 		(ParamExtFloat<px4::params::EKF2_GSF_TAS>) _param_ekf2_gsf_tas_default,
+
+
+		/// Dimitris - controls from which gps the filter will get data
+		(ParamExtInt<px4::params::EKFR_1_GPS_SRC>) _param_ekfr_1_gps_src,
+		(ParamExtInt<px4::params::EKFR_2_GPS_SRC>) _param_ekfr_3_gps_src,
+		(ParamExtInt<px4::params::EKFR_3_GPS_SRC>) _param_ekfr_3_gps_src,
 #endif // CONFIG_EKF2_GNSS
 
 #if defined(CONFIG_EKF2_BAROMETER)
@@ -709,22 +705,22 @@ private:
 		(ParamExtFloat<px4::params::EKF2_TERR_NOISE>) _param_ekf2_terr_noise,
 		(ParamExtFloat<px4::params::EKF2_TERR_GRAD>) _param_ekf2_terr_grad,
 #endif // CONFIG_EKF2_TERRAIN
-#if defined(CONFIG_EKF2_RANGE_FINDER) /// Dimitris commented out
+#if defined(CONFIG_EKF2_RANGE_FINDER)
 		// range finder fusion
-// 		(ParamExtInt<px4::params::EKF2_RNG_CTRL>) _param_ekf2_rng_ctrl,
-// 		(ParamExtFloat<px4::params::EKF2_RNG_DELAY>) _param_ekf2_rng_delay,
-// 		(ParamExtFloat<px4::params::EKF2_RNG_NOISE>) _param_ekf2_rng_noise,
-// 		(ParamExtFloat<px4::params::EKF2_RNG_SFE>) _param_ekf2_rng_sfe,
-// 		(ParamExtFloat<px4::params::EKF2_RNG_GATE>) _param_ekf2_rng_gate,
-// 		(ParamExtFloat<px4::params::EKF2_RNG_PITCH>) _param_ekf2_rng_pitch,
-// 		(ParamExtFloat<px4::params::EKF2_RNG_A_VMAX>) _param_ekf2_rng_a_vmax,
-// 		(ParamExtFloat<px4::params::EKF2_RNG_A_HMAX>) _param_ekf2_rng_a_hmax,
-// 		(ParamExtFloat<px4::params::EKF2_RNG_A_IGATE>) _param_ekf2_rng_a_igate,
-// 		(ParamExtFloat<px4::params::EKF2_RNG_QLTY_T>) _param_ekf2_rng_qlty_t,
-// 		(ParamExtFloat<px4::params::EKF2_RNG_K_GATE>) _param_ekf2_rng_k_gate,
-// 		(ParamExtFloat<px4::params::EKF2_RNG_POS_X>) _param_ekf2_rng_pos_x,
-// 		(ParamExtFloat<px4::params::EKF2_RNG_POS_Y>) _param_ekf2_rng_pos_y,
-// 		(ParamExtFloat<px4::params::EKF2_RNG_POS_Z>) _param_ekf2_rng_pos_z,
+		(ParamExtInt<px4::params::EKF2_RNG_CTRL>) _param_ekf2_rng_ctrl,
+		(ParamExtFloat<px4::params::EKF2_RNG_DELAY>) _param_ekf2_rng_delay,
+		(ParamExtFloat<px4::params::EKF2_RNG_NOISE>) _param_ekf2_rng_noise,
+		(ParamExtFloat<px4::params::EKF2_RNG_SFE>) _param_ekf2_rng_sfe,
+		(ParamExtFloat<px4::params::EKF2_RNG_GATE>) _param_ekf2_rng_gate,
+		(ParamExtFloat<px4::params::EKF2_RNG_PITCH>) _param_ekf2_rng_pitch,
+		(ParamExtFloat<px4::params::EKF2_RNG_A_VMAX>) _param_ekf2_rng_a_vmax,
+		(ParamExtFloat<px4::params::EKF2_RNG_A_HMAX>) _param_ekf2_rng_a_hmax,
+		(ParamExtFloat<px4::params::EKF2_RNG_A_IGATE>) _param_ekf2_rng_a_igate,
+		(ParamExtFloat<px4::params::EKF2_RNG_QLTY_T>) _param_ekf2_rng_qlty_t,
+		(ParamExtFloat<px4::params::EKF2_RNG_K_GATE>) _param_ekf2_rng_k_gate,
+		(ParamExtFloat<px4::params::EKF2_RNG_POS_X>) _param_ekf2_rng_pos_x,
+		(ParamExtFloat<px4::params::EKF2_RNG_POS_Y>) _param_ekf2_rng_pos_y,
+		(ParamExtFloat<px4::params::EKF2_RNG_POS_Z>) _param_ekf2_rng_pos_z,
 #endif // CONFIG_EKF2_RANGE_FINDER
 
 #if defined(CONFIG_EKF2_EXTERNAL_VISION)
