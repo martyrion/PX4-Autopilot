@@ -124,6 +124,16 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_req_hdrift(_params->req_hdrift),
 	_param_ekf2_req_vdrift(_params->req_vdrift),
 	_param_ekf2_gsf_tas_default(_params->EKFGSF_tas_default),
+
+	/// Dimitris
+	_param_ekfr_1_gps_src(_params->gps_src_r1),
+	_param_ekfr_2_gps_src(_params->gps_src_r2),
+	_param_ekfr_3_gps_src(_params->gps_src_r3),
+
+	_param_ekfr_1_gps_div(_params->gps_div_r1),
+	_param_ekfr_2_gps_div(_params->gps_div_r2),
+	_param_ekfr_3_gps_div(_params->gps_div_r3),
+
 #endif // CONFIG_EKF2_GNSS
 #if defined(CONFIG_EKF2_BAROMETER)
 	_param_ekf2_baro_ctrl(_params->baro_ctrl),
@@ -412,17 +422,53 @@ bool EKF2::multi_init(int imu, int mag)
 
 int EKF2::print_status(bool verbose)
 {
-	PX4_INFO_RAW("ekf2:%d EKF dt: %.4fs, attitude: %d, local position: %d, global position: %d\n",
-		     _instance, (double)_ekf.get_dt_ekf_avg(), _ekf.attitude_valid(),
-		     _ekf.local_position_is_valid(), _ekf.global_position_is_valid());
+	// Construct GPS source string
+	char gps_str[16];
 
-	perf_print_counter(_ekf_update_perf);
-	perf_print_counter(_msg_missed_imu_perf);
+	if (_current_gps_instance == 0) {
+		snprintf(gps_str, sizeof(gps_str), "GPS0/Blend");
 
+	} else {
+		snprintf(gps_str, sizeof(gps_str), "GPS%d", _current_gps_instance);
+	}
+
+	// Construct status flags string
+	char status_flags[32] = "";
+	char *ptr = status_flags;
+
+	if (_ekf.attitude_valid()) { ptr += snprintf(ptr, sizeof(status_flags) - (ptr - status_flags), "ATT "); }
+
+	if (_ekf.local_position_is_valid()) { ptr += snprintf(ptr, sizeof(status_flags) - (ptr - status_flags), "LPOS "); }
+
+	if (_ekf.global_position_is_valid()) { ptr += snprintf(ptr, sizeof(status_flags) - (ptr - status_flags), "GPOS"); }
+
+	if (strlen(status_flags) == 0) { snprintf(status_flags, sizeof(status_flags), "NONE"); }
+
+	// Single line output with tabs for alignment
+	// Format: Instance Type GPS dt Status
+	if (isResearchInstance()) {
+		PX4_INFO_RAW("  [%d]\tResearch-%d\t%s\t%.3fs\t%s\n",
+			     _instance,
+			     getResearchInstanceId(),
+			     gps_str,
+			     (double)_ekf.get_dt_ekf_avg(),
+			     status_flags);
+
+	} else {
+		PX4_INFO_RAW("  [%d]\tPrimary\t\t%s\t%.3fs\t%s\n",
+			     _instance,
+			     gps_str,
+			     (double)_ekf.get_dt_ekf_avg(),
+			     status_flags);
+	}
+
+	// Only show detailed info in verbose mode
 	if (verbose) {
+		perf_print_counter(_ekf_update_perf);
+		perf_print_counter(_msg_missed_imu_perf);
 #if defined(CONFIG_EKF2_VERBOSE_STATUS)
 		_ekf.print_status();
-#endif // CONFIG_EKF2_VERBOSE_STATUS
+#endif
 	}
 
 	return 0;
@@ -436,15 +482,6 @@ void EKF2::Run()
 		_vehicle_imu_sub.unregisterCallback();
 
 		return;
-	}
-
-	// Debug logging - Dimitris
-	static bool debug_logged = false;
-
-	if (!debug_logged) {
-		PX4_INFO("Instance %d: isResearchInstance=%s, getResearchInstanceId=%d",
-			 _instance, isResearchInstance() ? "YES" : "NO", getResearchInstanceId());
-		debug_logged = true;
 	}
 
 	// check for parameter updates
@@ -461,46 +498,105 @@ void EKF2::Run()
 // Dimitris
 		if (isResearchInstance()) {
 			int research_id = getResearchInstanceId();
+			PX4_DEBUG("Research instance %d (ID %d): Applying custom parameters", _instance, research_id);
 
-			PX4_INFO("Research instance %d (ID %d): Applying custom parameters", _instance, research_id);
+			// Arrays for all custom parameters based on research instance ID
+			// Height reference (int32_t values)
+			int32_t height_refs[] = {
+				_param_ekfr_1_hgt_ref.get(),
+				_param_ekfr_2_hgt_ref.get(),
+				_param_ekfr_3_hgt_ref.get()
+			};
 
-			switch (research_id) {
-			case 0:
-				PX4_INFO("  Before: height_ref=%d, gnss_ctrl=%d",
-					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
-				_params->height_sensor_ref = _param_ekfr_1_hgt_ref.get();
-				_params->gnss_ctrl = _param_ekfr_1_gps_ctrl.get();
-				_params->gps_vel_noise = _param_ekfr_1_gps_v_n.get();
-				_params->gps_vel_noise = _param_ekfr_1_gps_p_n.get();
-				PX4_INFO("  After: height_ref=%d, gnss_ctrl=%d",
-					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
-				break;
+			// GNSS control (int32_t values)
+			int32_t gnss_ctrls[] = {
+				_param_ekfr_1_gps_ctrl.get(),
+				_param_ekfr_2_gps_ctrl.get(),
+				_param_ekfr_3_gps_ctrl.get()
+			};
 
-			case 1:
-				PX4_INFO("  Before: height_ref=%d, gnss_ctrl=%d",
-					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
-				_params->height_sensor_ref = _param_ekfr_2_hgt_ref.get();
-				_params->gnss_ctrl = _param_ekfr_2_gps_ctrl.get();
-				_params->gps_vel_noise = _param_ekfr_2_gps_v_n.get();
-				_params->gps_vel_noise = _param_ekfr_2_gps_p_n.get();
-				PX4_INFO("  After: height_ref=%d, gnss_ctrl=%d",
-					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
-				break;
+			// GPS velocity noise (float values)
+			float gps_v_noise[] = {
+				_param_ekfr_1_gps_v_n.get(),
+				_param_ekfr_2_gps_v_n.get(),
+				_param_ekfr_3_gps_v_n.get()
+			};
 
-			case 2:
-				PX4_INFO("  Before: height_ref=%d, gnss_ctrl=%d",
-					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
-				_params->height_sensor_ref = _param_ekfr_3_hgt_ref.get();
-				_params->gnss_ctrl = _param_ekfr_3_gps_ctrl.get();
-				_params->gps_vel_noise = _param_ekfr_3_gps_v_n.get();
-				_params->gps_vel_noise = _param_ekfr_3_gps_p_n.get();
-				PX4_INFO("  After: height_ref=%d, gnss_ctrl=%d",
-					 (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
-				break;
+			// GPS position noise (float values)
+			float gps_p_noise[] = {
+				_param_ekfr_1_gps_p_n.get(),
+				_param_ekfr_2_gps_p_n.get(),
+				_param_ekfr_3_gps_p_n.get()
+			};
+
+			// GPS position X (float values)
+			float gps_pos_x[] = {
+				_param_ekfr_1_gps_pos_x.get(),
+				_param_ekfr_2_gps_pos_x.get(),
+				_param_ekfr_3_gps_pos_x.get()
+			};
+
+			// GPS position Y (float values)
+			float gps_pos_y[] = {
+				_param_ekfr_1_gps_pos_y.get(),
+				_param_ekfr_2_gps_pos_y.get(),
+				_param_ekfr_3_gps_pos_y.get()
+			};
+
+			// GPS position Z (float values)
+			float gps_pos_z[] = {
+				_param_ekfr_1_gps_pos_z.get(),
+				_param_ekfr_2_gps_pos_z.get(),
+				_param_ekfr_3_gps_pos_z.get()
+			};
+
+			// GPS source selection (uint8_t values)
+			int32_t gps_sources[] = {
+				_param_ekfr_1_gps_src.get(),
+				_param_ekfr_2_gps_src.get(),
+				_param_ekfr_3_gps_src.get()
+			};
+
+			if (research_id >= 0 && research_id < 3) {
+				// Log current values before applying changes
+				PX4_DEBUG("  Before applying research params:");
+				PX4_DEBUG("    height_ref=%d, gnss_ctrl=%d",
+					  (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
+				PX4_DEBUG("    gps_vel_noise=%.3f, gps_pos_noise=%.3f",
+					  (double)_params->gps_vel_noise, (double)_params->gps_pos_noise);
+				PX4_DEBUG("    gps_pos_body=(%.3f, %.3f, %.3f)",
+					  (double)_params->gps_pos_body(0), (double)_params->gps_pos_body(1),
+					  (double)_params->gps_pos_body(2));
+				PX4_DEBUG("    current_gps_instance=%d", _current_gps_instance);
+
+				// Apply all custom parameters for this research instance
+				_params->height_sensor_ref = height_refs[research_id];
+				_params->gnss_ctrl = gnss_ctrls[research_id];
+				_params->gps_vel_noise = gps_v_noise[research_id];
+				_params->gps_pos_noise = gps_p_noise[research_id];
+				_params->gps_pos_body(0) = gps_pos_x[research_id];
+				_params->gps_pos_body(1) = gps_pos_y[research_id];
+				_params->gps_pos_body(2) = gps_pos_z[research_id];
+				_current_gps_instance = gps_sources[research_id];
+
+				// Log new values after applying changes
+				PX4_DEBUG("  After applying research params:");
+				PX4_DEBUG("    height_ref=%d, gnss_ctrl=%d",
+					  (int)_params->height_sensor_ref, (int)_params->gnss_ctrl);
+				PX4_DEBUG("    gps_vel_noise=%.3f, gps_pos_noise=%.3f",
+					  (double)_params->gps_vel_noise, (double)_params->gps_pos_noise);
+				PX4_DEBUG("    gps_pos_body=(%.3f, %.3f, %.3f)",
+					  (double)_params->gps_pos_body(0), (double)_params->gps_pos_body(1),
+					  (double)_params->gps_pos_body(2));
+				PX4_DEBUG("    current_gps_instance=%d", _current_gps_instance);
+
+			} else {
+				PX4_WARN("Research instance ID %d out of range (0-2)", research_id);
 			}
 
 		} else {
 			PX4_INFO("Instance %d: Using standard parameters", _instance);
+			_current_gps_instance = 0; // Standard instance uses GPS 0
 		}
 
 		VerifyParams();
@@ -1930,6 +2026,11 @@ void EKF2::PublishStatus(const hrt_abstime &timestamp)
 			    status.mag_strength_ref_gs);
 #endif // CONFIG_EKF2_MAGNETOMETER
 
+
+	// Dimitris - Add GPS source tracking
+	status.gps_configured_instance = _gps_source_instance;
+	status.gps_device_id = _gps_device_id;
+
 	status.timestamp = _replay_mode ? timestamp : hrt_absolute_time();
 	_estimator_status_pub.publish(status);
 }
@@ -2476,48 +2577,73 @@ bool EKF2::UpdateFlowSample(ekf2_timestamps_s &ekf2_timestamps)
 #endif // CONFIG_EKF2_OPTICAL_FLOW
 
 #if defined(CONFIG_EKF2_GNSS)
+
 void EKF2::UpdateGpsSample(ekf2_timestamps_s &ekf2_timestamps)
 {
-	// EKF GPS message
-	sensor_gps_s vehicle_gps_position;
+	sensor_gps_s vehicle_gps_position{};
+	bool got_data = false;
 
-	if (_vehicle_gps_position_sub.update(&vehicle_gps_position)) {
+	if (isResearchInstance()) {
+		// Research instance: read from the selected raw GPS instance
+		got_data = _vehicle_gps_position_raw_subs[_current_gps_instance].update(&vehicle_gps_position);
 
-		Vector3f vel_ned;
-
-		if (vehicle_gps_position.vel_ned_valid) {
-			vel_ned = Vector3f(vehicle_gps_position.vel_n_m_s,
-					   vehicle_gps_position.vel_e_m_s,
-					   vehicle_gps_position.vel_d_m_s);
-
-		} else {
-			return; //TODO: change and set to NAN
-		}
-
-		gnssSample gnss_sample{
-			.time_us = vehicle_gps_position.timestamp,
-			.lat = vehicle_gps_position.latitude_deg,
-			.lon = vehicle_gps_position.longitude_deg,
-			.alt = static_cast<float>(vehicle_gps_position.altitude_msl_m),
-			.vel = vel_ned,
-			.hacc = vehicle_gps_position.eph,
-			.vacc = vehicle_gps_position.epv,
-			.sacc = vehicle_gps_position.s_variance_m_s,
-			.fix_type = vehicle_gps_position.fix_type,
-			.nsats = vehicle_gps_position.satellites_used,
-			.pdop = sqrtf(vehicle_gps_position.hdop *vehicle_gps_position.hdop
-				      + vehicle_gps_position.vdop * vehicle_gps_position.vdop),
-			.yaw = vehicle_gps_position.heading, //TODO: move to different message
-			.yaw_acc = vehicle_gps_position.heading_accuracy,
-			.yaw_offset = vehicle_gps_position.heading_offset,
-		};
-
-		_ekf.setGpsData(gnss_sample);
-
-		_gps_time_usec = gnss_sample.time_us;
-		_gps_alttitude_ellipsoid = static_cast<int32_t>(round(vehicle_gps_position.altitude_ellipsoid_m * 1e3));
+	} else {
+		// Normal EKF2 instance: read from blended GPS
+		got_data = _vehicle_gps_position_sub.update(&vehicle_gps_position);
+		_current_gps_instance = 0;
 	}
+
+	if (!got_data || !vehicle_gps_position.vel_ned_valid) {
+		return;
+	}
+
+	_gps_source_instance = _current_gps_instance;
+	_gps_device_id = vehicle_gps_position.device_id;
+
+	Vector3f vel_ned(vehicle_gps_position.vel_n_m_s,
+			 vehicle_gps_position.vel_e_m_s,
+			 vehicle_gps_position.vel_d_m_s);
+
+	if (isResearchInstance()) {
+		static hrt_abstime last_debug_time = 0;
+
+		if (hrt_absolute_time() - last_debug_time > 5_s) {
+			PX4_DEBUG("Research instance %d using GPS%d (device: 0x%08lX)",
+				  getResearchInstanceId(), _current_gps_instance,
+				  (unsigned long)vehicle_gps_position.device_id);
+			last_debug_time = hrt_absolute_time();
+		}
+	}
+
+	gnssSample gnss_sample{
+		.time_us = vehicle_gps_position.timestamp,
+		.lat = vehicle_gps_position.latitude_deg,
+		.lon = vehicle_gps_position.longitude_deg,
+		.alt = static_cast<float>(vehicle_gps_position.altitude_msl_m),
+		.vel = vel_ned,
+		.hacc = vehicle_gps_position.eph,
+		.vacc = vehicle_gps_position.epv,
+		.sacc = vehicle_gps_position.s_variance_m_s,
+		.fix_type = vehicle_gps_position.fix_type,
+		.nsats = vehicle_gps_position.satellites_used,
+		.pdop = sqrtf(vehicle_gps_position.hdop *vehicle_gps_position.hdop
+			      + vehicle_gps_position.vdop * vehicle_gps_position.vdop),
+		.yaw = vehicle_gps_position.heading,
+		.yaw_acc = vehicle_gps_position.heading_accuracy,
+		.yaw_offset = vehicle_gps_position.heading_offset,
+	};
+
+	_ekf.setGpsData(gnss_sample);
+
+	_gps_time_usec = gnss_sample.time_us;
+	_gps_alttitude_ellipsoid = static_cast<int32_t>(round(vehicle_gps_position.altitude_ellipsoid_m * 1e3));
 }
+
+
+
+
+
+
 #endif // CONFIG_EKF2_GNSS
 
 #if defined(CONFIG_EKF2_MAGNETOMETER)
@@ -2832,23 +2958,28 @@ bool EKF2::createResearchInstances(int num_research_instances, int default_imu_i
 			int32_t research_mag_indices[4] = {0, 0, 0, 0}; // default to MAG 0 for all instances
 
 			if (param_ekfr_1_imu != PARAM_INVALID) {
-    param_get(param_ekfr_1_imu, &research_imu_indices[0]);
-}
-if (param_ekfr_2_imu != PARAM_INVALID) {
-    param_get(param_ekfr_2_imu, &research_imu_indices[1]);
-}
-if (param_ekfr_3_imu != PARAM_INVALID) {
-    param_get(param_ekfr_3_imu, &research_imu_indices[2]);
-}
-if (param_ekfr_1_mag != PARAM_INVALID) {
-    param_get(param_ekfr_1_mag, &research_mag_indices[0]);
-}
-if (param_ekfr_2_mag != PARAM_INVALID) {
-    param_get(param_ekfr_2_mag, &research_mag_indices[1]);
-}
-if (param_ekfr_3_mag != PARAM_INVALID) {
-    param_get(param_ekfr_3_mag, &research_mag_indices[2]);
-}
+				param_get(param_ekfr_1_imu, &research_imu_indices[0]);
+			}
+
+			if (param_ekfr_2_imu != PARAM_INVALID) {
+				param_get(param_ekfr_2_imu, &research_imu_indices[1]);
+			}
+
+			if (param_ekfr_3_imu != PARAM_INVALID) {
+				param_get(param_ekfr_3_imu, &research_imu_indices[2]);
+			}
+
+			if (param_ekfr_1_mag != PARAM_INVALID) {
+				param_get(param_ekfr_1_mag, &research_mag_indices[0]);
+			}
+
+			if (param_ekfr_2_mag != PARAM_INVALID) {
+				param_get(param_ekfr_2_mag, &research_mag_indices[1]);
+			}
+
+			if (param_ekfr_3_mag != PARAM_INVALID) {
+				param_get(param_ekfr_3_mag, &research_mag_indices[2]);
+			}
 
 			// Create research instances
 			for (int research_id = 0; research_id < num_research_instances; research_id++) {
@@ -3189,36 +3320,58 @@ extern "C" __EXPORT int ekf2_main(int argc, char *argv[])
 
 		return 0;
 #endif // CONFIG_EKF2_MULTI_INSTANCE
+
 	} else if (strcmp(argv[1], "status") == 0) {
-		if (EKF2::trylock_module()) {
-#if defined(CONFIG_EKF2_MULTI_INSTANCE)
-			if (_ekf2_selector.load()) {
-				_ekf2_selector.load()->PrintStatus();
-			}
-#endif // CONFIG_EKF2_MULTI_INSTANCE
-
-			bool verbose_status = false;
-
+    if (EKF2::trylock_module()) {
+        // Check for verbose flag
+        bool verbose_status = false;
 #if defined(CONFIG_EKF2_VERBOSE_STATUS)
-			if (argc > 2 && (strcmp(argv[2], "-v") == 0)) {
-				verbose_status = true;
-			}
-#endif // CONFIG_EKF2_VERBOSE_STATUS
+        if (argc > 2 && (strcmp(argv[2], "-v") == 0)) {
+            verbose_status = true;
+        }
+#endif
 
-			for (int i = 0; i < EKF2_MAX_INSTANCES; i++) {
-				if (_objects[i].load()) {
-					PX4_INFO_RAW("\n");
-					_objects[i].load()->print_status(verbose_status);
-				}
-			}
+        PX4_INFO_RAW("\n=== EKF2 Status ===\n");
 
-			EKF2::unlock_module();
+#if defined(CONFIG_EKF2_MULTI_INSTANCE)
+        if (_ekf2_selector.load()) {
+            _ekf2_selector.load()->PrintStatus();
+        }
+#endif
 
-		} else {
-			PX4_WARN("module locked, try again later");
-		}
+        // Count active instances
+        int active_count = 0;
+        for (int i = 0; i < EKF2_MAX_INSTANCES; i++) {
+            if (_objects[i].load()) {
+                active_count++;
+            }
+        }
 
-		return 0;
+        if (active_count > 0) {
+            // Print header with column alignment
+            PX4_INFO_RAW("\n");
+            PX4_INFO_RAW("  ID\tType\t\tGPS\t\tdt\tStatus\n");
+            PX4_INFO_RAW("  ──\t────────\t─────────\t────\t──────\n");
+
+            // Print each instance on one line
+            for (int i = 0; i < EKF2_MAX_INSTANCES; i++) {
+                EKF2 *inst = _objects[i].load();
+                if (inst) {
+                    inst->print_status(verbose_status);
+                }
+            }
+
+            PX4_INFO_RAW("\n  Total: %d instances\n", active_count);
+        } else {
+            PX4_INFO_RAW("  No active instances\n");
+        }
+
+        EKF2::unlock_module();
+
+    } else {
+        PX4_WARN("module locked, try again later");
+    }
+    return 0;
 
 	} else if (strcmp(argv[1], "stop") == 0) {
 		EKF2::lock_module();

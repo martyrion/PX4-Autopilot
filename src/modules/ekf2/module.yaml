@@ -1653,25 +1653,66 @@ parameters:
       decimal: 3
     EKFR_1_GPS_SRC:
       description:
-        short: Which instance of vehicle_gps_position should the filter use
+        short: GPS data source for research instance 1
+        long: Selects which vehicle_gps_position instance to use for research EKF instance 1.
+              In multi-instance GPS mode (VEH_GPS_POS_MULTI=1)
+              - 0 = Raw GPS receiver 0 only (no failover)
+              - 1 = Raw GPS receiver 1 only (no failover)
+              Note - This parameter only affects research EKF instances, not the primary flight control instance.
       type: int32
       default: 1
-      min: 1
-      max: 2
+      min: 0
+      max: 1
       reboot_required: true
     EKFR_2_GPS_SRC:
       description:
-        short: Which instance of vehicle_gps_position should the filter use
+        short: GPS data source for research instance 2
+        long: Selects which vehicle_gps_position instance to use for research EKF instance 1.
+              In multi-instance GPS mode (VEH_GPS_POS_MULTI=1)
+              - 0 = Raw GPS receiver 0 only (no failover)
+              - 1 = Raw GPS receiver 1 only (no failover)
+              Note - This parameter only affects research EKF instances, not the primary flight control instance.
       type: int32
+
       default: 1
-      min: 1
-      max: 2
+      min: 0
+      max: 1
       reboot_required: true
     EKFR_3_GPS_SRC:
       description:
-        short: Which instance of vehicle_gps_position should the filter use
+        short: GPS data source for research instance 1
+        long: Selects which vehicle_gps_position instance to use for research EKF instance 1.
+              In multi-instance GPS mode (VEH_GPS_POS_MULTI=1)
+              - 0 = Raw GPS receiver 0 only (no failover)
+              - 0 = Raw GPS receiver 1 only (no failover)
+              Note - This parameter only affects research EKF instances, not the primary flight control instance.
+      type: int32
+      default: 1
+      min: 0
+      max: 1
+      reboot_required: true
+    EKFR_1_GPS_DIV:
+      description:
+        short: How to divide the frequency of incoming gps data
       type: int32
       default: 1
       min: 1
-      max: 2
+      max: 10
       reboot_required: true
+    EKFR_2_GPS_DIV:
+      description:
+        short: How to divide the frequency of incoming gps data
+      type: int32
+      default: 1
+      min: 1
+      max: 10
+      reboot_required: true
+    EKFR_3_GPS_DIV:
+      description:
+        short: How to divide the frequency of incoming gps data
+      type: int32
+      default: 1
+      min: 1
+      max: 10
+      reboot_required: true
+

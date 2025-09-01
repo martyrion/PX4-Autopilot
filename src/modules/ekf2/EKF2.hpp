@@ -150,6 +150,8 @@ public:
 	static void unlock_module() { pthread_mutex_unlock(&ekf2_module_mutex); }
 
 	void setAsResearchInstance(bool val) { _force_research = val; } /// Dimitris
+	bool isResearchInstance() const { return _research_instance_id >= 0; }
+    	int getResearchInstanceId() const { return _research_instance_id; }
 
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
 	bool multi_init(int imu, int mag);
@@ -166,16 +168,6 @@ private:
 	bool _force_research{false};
 	int _research_instance_id{-1}; // -1 = not research, 0+ = research instance ID
 
-	bool isResearchInstance() const
-	{
-		bool result = _force_research || _research_instance_id >= 0;
-		PX4_INFO("isResearchInstance() called: _force_research=%s, _research_instance_id=%d, result=%s",
-			 _force_research ? "true" : "false", _research_instance_id, result ? "true" : "false");
-		return result;
-	}
-
-	int getResearchInstanceId() const { return _research_instance_id; }
-
 	// Static helper function for creating research instances
 	static bool createResearchInstances(int num_research_instances, int imu_idx, int mag_idx);
 
@@ -183,16 +175,15 @@ private:
 	{
 		_force_research = val;
 		_research_instance_id = val ? research_id : -1;
-
-		// Debug logging
-		PX4_INFO("setAsResearchInstance called: val=%s, research_id=%d, _force_research=%s, _research_instance_id=%d",
-			 val ? "true" : "false", research_id,
-			 _force_research ? "true" : "false", _research_instance_id);
 	}
 	// END OF BLOCK
 
 	static constexpr uint8_t MAX_NUM_IMUS = 4;
 	static constexpr uint8_t MAX_NUM_MAGS = 4;
+
+	// Dimitris - used to publish these data in estimator_status
+	uint8_t _gps_source_instance{0};
+	uint32_t _gps_device_id{0};
 
 	void Run() override;
 
@@ -503,7 +494,14 @@ private:
 
 	float _last_gnss_hgt_bias_published{};
 
+	// uORB::Subscription _vehicle_gps_position_sub{ORB_ID(vehicle_gps_position)};
 	uORB::Subscription _vehicle_gps_position_sub{ORB_ID(vehicle_gps_position)};
+	uORB::SubscriptionMultiArray<sensor_gps_s> _vehicle_gps_position_raw_subs{ORB_ID::vehicle_gps_position_raw};
+
+
+
+	uint8_t _current_gps_instance{0}; /// Dimitris
+
 
 	uORB::PublicationMulti<estimator_bias_s> _estimator_gnss_hgt_bias_pub{ORB_ID(estimator_gnss_hgt_bias)};
 	uORB::PublicationMulti<estimator_gps_status_s> _estimator_gps_status_pub{ORB_ID(estimator_gps_status)};
@@ -574,7 +572,7 @@ private:
 #if defined(CONFIG_EKF2_GNSS)
 		(ParamExtInt<px4::params::EKF2_GPS_CTRL>) _param_ekf2_gps_ctrl,
 
-		 /// Dimitris Custom GPS CTRL
+		/// Dimitris Custom GPS CTRL
 		(ParamExtInt<px4::params::EKFR_1_GPS_CTRL>) _param_ekfr_1_gps_ctrl,
 		(ParamExtInt<px4::params::EKFR_2_GPS_CTRL>) _param_ekfr_2_gps_ctrl,
 		(ParamExtInt<px4::params::EKFR_3_GPS_CTRL>) _param_ekfr_3_gps_ctrl,
@@ -627,8 +625,12 @@ private:
 
 		/// Dimitris - controls from which gps the filter will get data
 		(ParamExtInt<px4::params::EKFR_1_GPS_SRC>) _param_ekfr_1_gps_src,
-		(ParamExtInt<px4::params::EKFR_2_GPS_SRC>) _param_ekfr_3_gps_src,
+		(ParamExtInt<px4::params::EKFR_2_GPS_SRC>) _param_ekfr_2_gps_src,
 		(ParamExtInt<px4::params::EKFR_3_GPS_SRC>) _param_ekfr_3_gps_src,
+
+		(ParamExtInt<px4::params::EKFR_1_GPS_DIV>) _param_ekfr_1_gps_div,
+		(ParamExtInt<px4::params::EKFR_2_GPS_DIV>) _param_ekfr_2_gps_div,
+		(ParamExtInt<px4::params::EKFR_3_GPS_DIV>) _param_ekfr_3_gps_div,
 #endif // CONFIG_EKF2_GNSS
 
 #if defined(CONFIG_EKF2_BAROMETER)

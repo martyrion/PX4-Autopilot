@@ -75,6 +75,7 @@ public:
 	void PrintStatus();
 
 	void RequestInstance(uint8_t instance) { _request_instance.store(instance); }
+	int getSelectedInstance() const { return _selected_instance; }
 
 private:
 	static constexpr uint8_t INVALID_INSTANCE{UINT8_MAX};

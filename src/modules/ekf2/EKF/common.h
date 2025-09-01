@@ -339,6 +339,14 @@ struct parameters {
 	float gps_vel_noise_r3{0.5f};           /// Dimitris
 	float gps_pos_noise_r3{0.5f};           /// Dimitris
 
+	int32_t gps_src_r1{};			/// Dimitris
+	int32_t gps_src_r2{};			/// Dimitris
+	int32_t gps_src_r3{};			/// Dimitris
+
+	int32_t gps_div_r1{};			/// Dimitris
+	int32_t gps_div_r2{};			/// Dimitris
+	int32_t gps_div_r3{};
+
 	float gps_hgt_bias_nsd{0.13f};          ///< process noise for gnss height bias estimation (m/s/sqrt(Hz))
 	float gps_pos_innov_gate{5.0f};         ///< GPS horizontal position innovation consistency gate size (STD)
 	float gps_vel_innov_gate{5.0f};         ///< GPS velocity innovation consistency gate size (STD)

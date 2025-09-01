@@ -1,0 +1,1 @@
+Run 41 Information\n========================\nTimestamp: 2025-08-29 09:27:01.359563\nSuccess: True\n\nParameters tested:\n  EKF2_ACC_B_NOISE: 0.0048\n  EKF2_GYR_B_NOISE: 0.0003\n  EKF2_ACC_NOISE: 0.35\n  EKF2_GYR_NOISE: 0.018\n  EKF2_NOAID_NOISE: 0.5\n

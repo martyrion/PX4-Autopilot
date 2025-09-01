@@ -128,6 +128,7 @@ void LoggedTopics::add_default_topics()
 	add_topic("vehicle_control_mode");
 	add_topic("vehicle_global_position", 200);
 	add_topic("vehicle_gps_position", 100);
+	add_topic("vehicle_gps_position_raw", 100);
 	add_topic("vehicle_land_detected");
 	add_topic("vehicle_local_position", 100);
 	add_topic("vehicle_local_position_setpoint", 100);
@@ -338,6 +339,26 @@ void LoggedTopics::add_debug_topics()
 }
 
 void LoggedTopics::add_estimator_replay_topics()
+{
+	// for estimator replay (need to be at full rate)
+	add_topic("ekf2_timestamps");
+
+	// current EKF2 subscriptions
+	add_topic("airspeed");
+	add_topic("vehicle_optical_flow");
+	add_topic("sensor_combined");
+	add_topic("sensor_selection");
+	add_topic("vehicle_air_data");
+	add_topic("vehicle_gps_position");
+	add_topic("vehicle_land_detected");
+	add_topic("vehicle_magnetometer");
+	add_topic("vehicle_status");
+	add_topic("vehicle_visual_odometry");
+	add_topic("aux_global_position");
+	add_topic_multi("distance_sensor");
+}
+
+void LoggedTopics::add_research_topics()
 {
 	// for estimator replay (need to be at full rate)
 	add_topic("ekf2_timestamps");
@@ -615,5 +636,9 @@ void LoggedTopics::initialize_configured_topics(SDLogProfileMask profile)
 
 	if (profile & SDLogProfileMask::MAVLINK_TUNNEL) {
 		add_mavlink_tunnel();
+	}
+
+	if (profile & SDLogProfileMask::MAVLINK_TUNNEL) {
+		add_research_topics();
 	}
 }

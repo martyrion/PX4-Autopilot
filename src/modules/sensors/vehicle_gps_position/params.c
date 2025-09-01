@@ -80,21 +80,3 @@ PARAM_DEFINE_FLOAT(SENS_GPS_TAU, 10.0f);
  * @max 1
  */
 PARAM_DEFINE_INT32(SENS_GPS_PRIME, 0);
-
-/**
- * Vehicle GPS position multi-instance mode
- *
- * Enable publication of raw GPS data to additional vehicle_gps_position instances.
- * When enabled:
- * - Instance 0: Standard blended/selected GPS output (for flight control)
- * - Instance 1: Raw data from GPS receiver 0
- * - Instance 2: Raw data from GPS receiver 1
- *
- * This mode is useful for research, comparison, and multi-EKF configurations where
- * different EKF instances need independent GPS data streams.
- *
- * @boolean
- * @reboot_required true
- * @group RESEARCH
- */
-PARAM_DEFINE_INT32(V_GPS_POS_MULTI, 0);

@@ -1,0 +1,1 @@
+Run 208 Information\n========================\nTimestamp: 2025-08-29 10:53:40.110072\nSuccess: True\n\nParameters tested:\n  EKF2_ACC_B_NOISE: 0.0052\n  EKF2_GYR_B_NOISE: 0.0003\n  EKF2_ACC_NOISE: 0.36\n  EKF2_GYR_NOISE: 0.0175\n  EKF2_NOAID_NOISE: 0.48\n
