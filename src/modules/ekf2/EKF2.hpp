@@ -151,7 +151,7 @@ public:
 
 	void setAsResearchInstance(bool val) { _force_research = val; } /// Dimitris
 	bool isResearchInstance() const { return _research_instance_id >= 0; }
-    	int getResearchInstanceId() const { return _research_instance_id; }
+	int getResearchInstanceId() const { return _research_instance_id; }
 
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
 	bool multi_init(int imu, int mag);
@@ -685,6 +685,14 @@ private:
 		(ParamExtFloat<px4::params::EKF2_MAG_GATE>) _param_ekf2_mag_gate,
 		(ParamExtInt<px4::params::EKF2_DECL_TYPE>) _param_ekf2_decl_type,
 		(ParamExtInt<px4::params::EKF2_MAG_TYPE>) _param_ekf2_mag_type,
+
+		/// Dimitris
+
+		(ParamExtInt<px4::params::EKFR_1_MAG_TYPE>) _param_ekfr_1_mag_type,
+		(ParamExtInt<px4::params::EKFR_2_MAG_TYPE>) _param_ekfr_2_mag_type,
+		(ParamExtInt<px4::params::EKFR_3_MAG_TYPE>) _param_ekfr_3_mag_type,
+
+
 		(ParamExtFloat<px4::params::EKF2_MAG_ACCLIM>) _param_ekf2_mag_acclim,
 		(ParamExtInt<px4::params::EKF2_MAG_CHECK>) _param_ekf2_mag_check,
 		(ParamExtFloat<px4::params::EKF2_MAG_CHK_STR>) _param_ekf2_mag_chk_str,

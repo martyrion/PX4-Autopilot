@@ -172,7 +172,16 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_hdg_gate(_params->heading_innov_gate),
 	_param_ekf2_mag_gate(_params->mag_innov_gate),
 	_param_ekf2_decl_type(_params->mag_declination_source),
+
 	_param_ekf2_mag_type(_params->mag_fusion_type),
+
+	/// Dimitris
+	_param_ekfr_1_mag_type(_params->mag_fusion_type_r1),
+	_param_ekfr_2_mag_type(_params->mag_fusion_type_r2),
+	_param_ekfr_3_mag_type(_params->mag_fusion_type_r3),
+
+
+
 	_param_ekf2_mag_acclim(_params->mag_acc_gate),
 	_param_ekf2_mag_check(_params->mag_check),
 	_param_ekf2_mag_chk_str(_params->mag_check_strength_tolerance_gs),
@@ -550,11 +559,18 @@ void EKF2::Run()
 				_param_ekfr_3_gps_pos_z.get()
 			};
 
-			// GPS source selection (uint8_t values)
+			// GPS source selection
 			int32_t gps_sources[] = {
 				_param_ekfr_1_gps_src.get(),
 				_param_ekfr_2_gps_src.get(),
 				_param_ekfr_3_gps_src.get()
+			};
+
+			// Mag type selection (int32_t)
+			int32_t mag_types[]{
+				_param_ekfr_1_mag_type.get(),
+				_param_ekfr_2_mag_type.get(),
+				_param_ekfr_3_mag_type.get()
 			};
 
 			if (research_id >= 0 && research_id < 3) {
@@ -578,6 +594,7 @@ void EKF2::Run()
 				_params->gps_pos_body(1) = gps_pos_y[research_id];
 				_params->gps_pos_body(2) = gps_pos_z[research_id];
 				_current_gps_instance = gps_sources[research_id];
+				_params->mag_fusion_type = mag_types[research_id];
 
 				// Log new values after applying changes
 				PX4_DEBUG("  After applying research params:");
@@ -2633,7 +2650,18 @@ void EKF2::UpdateGpsSample(ekf2_timestamps_s &ekf2_timestamps)
 		.yaw_offset = vehicle_gps_position.heading_offset,
 	};
 
-	_ekf.setGpsData(gnss_sample);
+	/* Dimitris: per-instance GNSS gate
+	 * If gnss_ctrl is zero for this research instance, do not provide GNSS
+	 * measurements to the EKF core (prevents both nav fusion and GSF yaw usage).
+	 */
+	if (isResearchInstance() && (_params->gnss_ctrl == 0)) {
+		// Skip passing GNSS data to the EKF core for research (DR) instances
+		PX4_DEBUG("Research instance %d: GNSS blocked (gnss_ctrl==0)", _instance);
+
+	} else {
+		// Normal behavior: provide GNSS sample to EKF core
+		_ekf.setGpsData(gnss_sample);
+	}
 
 	_gps_time_usec = gnss_sample.time_us;
 	_gps_alttitude_ellipsoid = static_cast<int32_t>(round(vehicle_gps_position.altitude_ellipsoid_m * 1e3));

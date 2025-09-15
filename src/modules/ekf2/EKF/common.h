@@ -391,6 +391,11 @@ struct parameters {
 	float mag_innov_gate{3.0f};             ///< magnetometer fusion innovation consistency gate size (STD)
 	int32_t mag_declination_source{3};      ///< bitmask used to control the handling of declination data
 	int32_t mag_fusion_type{0};             ///< integer used to specify the type of magnetometer fusion used
+	int32_t mag_fusion_type_r1{0};          /// Dimitris
+	int32_t mag_fusion_type_r2{0};          /// Dimitris
+	int32_t mag_fusion_type_r3{0};          /// Dimitris
+
+
 	float mag_acc_gate{0.5f};               ///< when in auto select mode, heading fusion will be used when manoeuvre accel is lower than this (m/sec**2)
 
 	// compute synthetic magnetomter Z value if possible

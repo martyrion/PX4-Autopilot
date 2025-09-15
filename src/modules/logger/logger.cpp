@@ -2432,11 +2432,11 @@ $ logger on
 	PRINT_MODULE_USAGE_PARAM_FLAG('e', "Enable logging right after start until disarm (otherwise only when armed)", true);
 	PRINT_MODULE_USAGE_PARAM_FLAG('f', "Log until shutdown (implies -e)", true);
 	PRINT_MODULE_USAGE_PARAM_FLAG('t', "Use date/time for naming log directories and files", true);
-	PRINT_MODULE_USAGE_PARAM_INT('r', 280, 0, 8000, "Log rate in Hz, 0 means unlimited rate", true);
+	PRINT_MODULE_USAGE_PARAM_INT('r', 200, 0, 8000, "Log rate in Hz, 0 means unlimited rate", true); /// Changed from 250 to 200
 	PRINT_MODULE_USAGE_PARAM_INT('b', 12, 4, 10000, "Log buffer size in KiB", true);
 	PRINT_MODULE_USAGE_PARAM_STRING('p', nullptr, "<topic_name>",
 					 "Poll on a topic instead of running with fixed rate (Log rate and topic intervals are ignored if this is set)", true);
-	PRINT_MODULE_USAGE_PARAM_FLOAT('c', 1.0, 0.2, 2.0, "Log rate factor (higher is faster)", true);
+	PRINT_MODULE_USAGE_PARAM_FLOAT('c', 1.0, 0.2, 40.0, "Log rate factor (higher is faster)", true);
 	PRINT_MODULE_USAGE_COMMAND_DESCR("on", "start logging now, override arming (logger must be running)");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("off", "stop logging now, override arming (logger must be running)");
 #ifdef __PX4_NUTTX
