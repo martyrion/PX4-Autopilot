@@ -122,3 +122,7 @@ float32 mag_inclination_deg
 float32 mag_inclination_ref_deg
 float32 mag_strength_gs
 float32 mag_strength_ref_gs
+
+bool is_research # Shows if the ekf2 publishing this is a research instance.
+uint8 gps_configured_instance  # vehicle_gps_position instance (0=blended, 1=GPS0, 2=GPS1)
+uint32 gps_device_id       # GPS device ID from sensor_gps
