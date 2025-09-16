@@ -119,6 +119,10 @@ void VehicleGPSPosition::Run()
 			_sensor_gps_sub[i].copy(&gps_data);
 			_gps_blending.setGpsData(gps_data, i);
 
+			if (_sensor_gps_sub[i].copy(&gps_data)) {
+				_vehicle_gps_position_raw_pub[i].publish(gps_data);
+			}
+
 			if (!_sensor_gps_sub[i].registered()) {
 				_sensor_gps_sub[i].registerCallback();
 			}
