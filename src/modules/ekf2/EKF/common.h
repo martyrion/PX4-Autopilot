@@ -279,6 +279,13 @@ struct parameters {
 
 	// measurement source control
 	int32_t ekf2_hgt_ref{static_cast<int32_t>(HeightSensor::BARO)};
+
+	/// Dimitris
+	int32_t ekf2_hgt_ref_r1{static_cast<int32_t>(HeightSensor::BARO)};
+	int32_t ekf2_hgt_ref_r2{static_cast<int32_t>(HeightSensor::BARO)};
+	int32_t ekf2_hgt_ref_r3{static_cast<int32_t>(HeightSensor::BARO)};
+
+
 	int32_t position_sensor_ref{static_cast<int32_t>(PositionSensor::GNSS)};
 
 	float ekf2_delay_max{110.f};            ///< maximum time delay of all the aiding sensors. Sets the size of the observation buffers. (mSec)
@@ -327,14 +334,38 @@ struct parameters {
 
 #if defined(CONFIG_EKF2_GNSS)
 	int32_t ekf2_gps_ctrl {static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)};
+
+	/// Dimitris
+	int32_t ekf2_gps_ctrl_r1{static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)}; /// Dimitris
+	int32_t ekf2_gps_ctrl_r2{static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)}; /// Dimitris
+	int32_t ekf2_gps_ctrl_r3{static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)}; /// Dimitris
+
 	int32_t ekf2_gps_mode {static_cast<int32_t>(GnssMode::kAuto)};
 	float ekf2_gps_delay{110.0f};           ///< GPS measurement delay relative to the IMU (mSec)
 
 	Vector3f gps_pos_body{};                ///< xyz position of the GPS antenna in body frame (m)
 
+	Vector3f gps_pos_body_r1{};             /// Dimitris
+	Vector3f gps_pos_body_r2{};             /// Dimitris
+	Vector3f gps_pos_body_r3{};             /// Dimitris
+
 	// position and velocity fusion
 	float ekf2_gps_v_noise{0.5f};           ///< minimum allowed observation noise for gps velocity fusion (m/sec)
 	float ekf2_gps_p_noise{0.5f};           ///< minimum allowed observation noise for gps position fusion (m)
+
+	float ekf2_gps_v_noise_r1{0.5f};           /// Dimitris
+	float ekf2_gps_p_noise_r1{0.5f};           /// Dimitris
+
+	float ekf2_gps_v_noise_r2{0.5f};           /// Dimitris
+	float ekf2_gps_p_noise_r2{0.5f};           /// Dimitris
+
+	float ekf2_gps_v_noise_r3{0.5f};           /// Dimitris
+	float ekf2_gps_p_noise_r3{0.5f};           /// Dimitris
+
+	int32_t gps_src_r1{};			/// Dimitris
+	int32_t gps_src_r2{};			/// Dimitris
+	int32_t gps_src_r3{};			/// Dimitris
+
 	float gps_hgt_bias_nsd{0.13f};          ///< process noise for gnss height bias estimation (m/s/sqrt(Hz))
 	float ekf2_gps_p_gate{5.0f};            ///< GPS horizontal position innovation consistency gate size (STD)
 	float ekf2_gps_v_gate{5.0f};            ///< GPS velocity innovation consistency gate size (STD)
@@ -377,6 +408,9 @@ struct parameters {
 	float ekf2_mag_gate{3.0f};              ///< magnetometer fusion innovation consistency gate size (STD)
 	int32_t ekf2_decl_type{3};              ///< bitmask used to control the handling of declination data
 	int32_t ekf2_mag_type{0};               ///< integer used to specify the type of magnetometer fusion used
+	int32_t ekf2_mag_type_r1{0};          /// Dimitris
+	int32_t ekf2_mag_type_r2{0};          /// Dimitris
+	int32_t ekf2_mag_type_r3{0};          /// Dimitris
 	float ekf2_mag_acclim{0.5f};            ///< when in auto select mode, heading fusion will be used when manoeuvre accel is lower than this (m/sec**2)
 	// compute synthetic magnetomter Z value if possible
 	int32_t ekf2_synt_mag_z{0};

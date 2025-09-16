@@ -2,14 +2,6 @@ module_name: ekf2
 parameters:
 - group: RESEARCH
   definitions:
-    EKFR_EN:
-      description:
-        short: Number of EKF research instances (Dimitris)
-        long: Specifies the number of additional research EKF instances to create alongside the primary instance. Set to 0 to disable research mode, 1-2 to create that many research instances. IMPORTANT! When using different magnetometers for research instances (EKFR_MAG_*),  you must set SENS_MAG_MODE=0 to enable proper magnetometer instance selection.
-      type: int32
-      default: 0
-      min: 0
-      max: 3
     EKFR_1_GPS_V_N:
       description:
         short: Measurement noise for GNSS velocity for research instance 1 (Dimitris)
@@ -157,150 +149,6 @@ parameters:
       default: 7
       min: 0
       max: 15
-    EKFR_IMU_PRIMARY:
-      description:
-        short: IMU instance for primary EKF instance (Dimitris)
-        long: Specifies which IMU instance (0-3) should be used for the primary EKF instance. Must be a valid IMU instance available on the system.
-      type: int32
-      default: 0
-      min: 0
-      max: 3
-      reboot_required: true
-    EKFR_1_IMU:
-      description:
-        short: IMU instance for research EKF instance 1 (Dimitris)
-        long: Specifies which IMU instance (0-3) should be used for research EKF instance 1. Must be a valid IMU instance available on the system.
-      type: int32
-      default: 0
-      min: 0
-      max: 3
-      reboot_required: true
-    EKFR_2_IMU:
-      description:
-        short: IMU instance for research EKF instance 2 (Dimitris)
-        long: Specifies which IMU instance (0-3) should be used for research EKF instance 2. Must be a valid IMU instance available on the system.
-      type: int32
-      default: 0
-      min: 0
-      max: 3
-      reboot_required: true
-    EKFR_3_IMU:
-      description:
-        short: IMU instance for research EKF instance 2 (Dimitris)
-        long: Specifies which IMU instance (0-3) should be used for research EKF instance 2. Must be a valid IMU instance available on the system.
-      type: int32
-      default: 0
-      min: 0
-      max: 3
-      reboot_required: true
-    EKFR_MAG_PRIMARY:
-      description:
-        short: Magnetometer instance for primary EKF instance (Dimitris)
-        long: Specifies which magnetometer instance should be used for the primary EKF instance. Must be a valid magnetometer instance available on the system.
-      type: int32
-      default: 0
-      min: 0
-      max: 3
-      reboot_required: true
-    EKFR_1_MAG:
-      description:
-        short: Magnetometer instance for research EKF instance 1
-        long: Specifies which magnetometer instance should be used for research EKF instance 1. Must be a valid magnetometer instance available on the system.
-      type: int32
-      default: 0
-      min: 0
-      max: 3
-      reboot_required: true
-    EKFR_2_MAG:
-      description:
-        short: Magnetometer instance for research EKF instance 2
-        long: Specifies which magnetometer instance  should be used for research EKF instance 2. Must be a valid magnetometer instance available on the system.
-      type: int32
-      default: 0
-      min: 0
-      max: 3
-      reboot_required: true
-    EKFR_3_MAG:
-      description:
-        short: Magnetometer instance for research EKF instance 2
-        long: Specifies which magnetometer instance  should be used for research EKF instance 2. Must be a valid magnetometer instance available on the system.
-      type: int32
-      default: 0
-      min: 0
-      max: 3
-      reboot_required: true
-    EKFR_1_GPS_POS_X:
-      description:
-        short: X position of GPS antenna in body frame (forward axis with origin relative
-          to vehicle centre of gravity)
-      type: float
-      default: 0.0
-      unit: m
-      decimal: 3
-    EKFR_1_GPS_POS_Y:
-      description:
-        short: Y position of GPS antenna in body frame (right axis with origin relative
-          to vehicle centre of gravity)
-      type: float
-      default: 0.0
-      unit: m
-      decimal: 3
-    EKFR_1_GPS_POS_Z:
-      description:
-        short: Z position of GPS antenna in body frame (down axis with origin relative
-          to vehicle centre of gravity)
-      type: float
-      default: 0.0
-      unit: m
-      decimal: 3
-    EKFR_2_GPS_POS_X:
-      description:
-        short: X position of GPS antenna in body frame (forward axis with origin relative
-          to vehicle centre of gravity)
-      type: float
-      default: 0.0
-      unit: m
-      decimal: 3
-    EKFR_2_GPS_POS_Y:
-      description:
-        short: Y position of GPS antenna in body frame (right axis with origin relative
-          to vehicle centre of gravity)
-      type: float
-      default: 0.0
-      unit: m
-      decimal: 3
-    EKFR_2_GPS_POS_Z:
-      description:
-        short: Z position of GPS antenna in body frame (down axis with origin relative
-          to vehicle centre of gravity)
-      type: float
-      default: 0.0
-      unit: m
-      decimal: 3
-    EKFR_3_GPS_POS_X:
-      description:
-        short: X position of GPS antenna in body frame (forward axis with origin relative
-          to vehicle centre of gravity)
-      type: float
-      default: 0.0
-      unit: m
-      decimal: 3
-    EKFR_3_GPS_POS_Y:
-      description:
-        short: Y position of GPS antenna in body frame (right axis with origin relative
-          to vehicle centre of gravity)
-      type: float
-      default: 0.0
-      unit: m
-      decimal: 3
-    EKFR_3_GPS_POS_Z:
-      description:
-        short: Z position of GPS antenna in body frame (down axis with origin relative
-          to vehicle centre of gravity)
-      type: float
-      default: 0.0
-      unit: m
-      decimal: 3
     EKFR_1_GPS_SRC:
       description:
         short: GPS data source for research instance 1
@@ -323,7 +171,6 @@ parameters:
               - 1 = Raw GPS receiver 1 only (no failover)
               Note - This parameter only affects research EKF instances, not the primary flight control instance.
       type: int32
-
       default: 1
       min: 0
       max: 1
@@ -340,30 +187,6 @@ parameters:
       default: 1
       min: 0
       max: 1
-      reboot_required: true
-    EKFR_1_GPS_DIV:
-      description:
-        short: How to divide the frequency of incoming gps data
-      type: int32
-      default: 1
-      min: 1
-      max: 10
-      reboot_required: true
-    EKFR_2_GPS_DIV:
-      description:
-        short: How to divide the frequency of incoming gps data
-      type: int32
-      default: 1
-      min: 1
-      max: 10
-      reboot_required: true
-    EKFR_3_GPS_DIV:
-      description:
-        short: How to divide the frequency of incoming gps data
-      type: int32
-      default: 1
-      min: 1
-      max: 10
       reboot_required: true
     EKFR_1_MAG_TYPE:
       description:
@@ -385,6 +208,7 @@ parameters:
         0: Automatic
         1: Magnetic heading
         5: None
+        6: Init
       default: 0
       reboot_required: true
     EKFR_2_MAG_TYPE:
@@ -407,6 +231,7 @@ parameters:
         0: Automatic
         1: Magnetic heading
         5: None
+        6: Init
       default: 0
       reboot_required: true
     EKFR_3_MAG_TYPE:
@@ -429,7 +254,121 @@ parameters:
         0: Automatic
         1: Magnetic heading
         5: None
+        6: Init
       default: 0
-      reboot_required: true
-
+    EKF2_0_IMU:
+      description:
+          short: EKF2 Instance 0 IMU selection
+          long: |
+              IMU sensor index for EKF2 instance 0.
+              Instance 0 is always created.
+      type: int32
+      values:
+          0: IMU 0
+          1: IMU 1
+          2: IMU 2
+          3: IMU 3
+      default: 0
+      min: 0
+      max: 3
+    EKF2_0_MAG:
+      description:
+          short: EKF2 Instance 0 MAG selection
+          long: |
+              Magnetometer sensor index for EKF2 instance 0.
+      type: int32
+      values:
+          0: MAG 0
+          1: MAG 1
+          2: MAG 2
+      default: 0
+      min: 0
+      max: 2
+    EKF2_1_IMU:
+      description:
+          short: EKF2 Instance 1 IMU selection
+          long: |
+              IMU sensor index for EKF2 instance 1.
+              Only used if EKF2_MULTI_IMU >= 2.
+      type: int32
+      values:
+          0: IMU 0
+          1: IMU 1
+          2: IMU 2
+          3: IMU 3
+      default: 1
+      min: 0
+      max: 3
+    EKF2_1_MAG:
+      description:
+          short: EKF2 Instance 1 MAG selection
+          long: |
+              Magnetometer sensor index for EKF2 instance 1.
+              Only used if EKF2_MULTI_IMU >= 2.
+      type: int32
+      values:
+          0: MAG 0
+          1: MAG 1
+          2: MAG 2
+      default: 0
+      min: 0
+      max: 2
+    EKF2_2_IMU:
+      description:
+          short: EKF2 Instance 2 IMU selection
+          long: |
+              IMU sensor index for EKF2 instance 2.
+              Only used if EKF2_MULTI_IMU >= 3.
+      type: int32
+      values:
+          0: IMU 0
+          1: IMU 1
+          2: IMU 2
+          3: IMU 3
+      default: 2
+      min: 0
+      max: 3
+    EKF2_2_MAG:
+      description:
+          short: EKF2 Instance 2 MAG selection
+          long: |
+              Magnetometer sensor index for EKF2 instance 2.
+              Only used if EKF2_MULTI_IMU >= 3.
+      type: int32
+      values:
+          0: MAG 0
+          1: MAG 1
+          2: MAG 2
+      default: 0
+      min: 0
+      max: 2
+    EKF2_3_IMU:
+      description:
+          short: EKF2 Instance 3 IMU selection
+          long: |
+              IMU sensor index for EKF2 instance 3.
+              Only used if EKF2_MULTI_IMU >= 4.
+      type: int32
+      values:
+          0: IMU 0
+          1: IMU 1
+          2: IMU 2
+          3: IMU 3
+      default: 3
+      min: 0
+      max: 3
+    EKF2_3_MAG:
+      description:
+          short: EKF2 Instance 3 MAG selection
+          long: |
+              Magnetometer sensor index for EKF2 instance 3.
+              Only used if EKF2_MULTI_IMU >= 4.
+      type: int32
+      values:
+          0: MAG 0
+          1: MAG 1
+          2: MAG 2
+      default: 0
+      min: 0
+      max: 2
 

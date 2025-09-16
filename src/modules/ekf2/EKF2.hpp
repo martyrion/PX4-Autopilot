@@ -170,6 +170,44 @@ private:
 	void PublishAidSourceStatus(const hrt_abstime &timestamp);
 	void PublishAttitude(const hrt_abstime &timestamp);
 
+private:
+	struct SpawnConfig {
+		bool replay_mode = false;
+		bool multi_mode = false;
+		int32_t imu_instances = 0;
+		int32_t mag_instances = 0;
+	};
+
+	struct InstanceAllocationState {
+		int multi_instances_allocated = 0;
+		bool ekf2_instance_created[MAX_NUM_IMUS][MAX_NUM_MAGS] = {};
+		hrt_abstime time_started = 0;
+	};
+
+	// Static helper functions for task spawning
+	static SpawnConfig parseSpawnArguments(int argc, char *argv[]);
+	static bool configureMultiInstance(SpawnConfig &config);
+	static bool configureImuInstances(SpawnConfig &config);
+	static void configureMagInstances(SpawnConfig &config);
+	static bool initializeEKF2Selector();
+	static int createSingleInstance(bool replay_mode);
+
+#if defined(CONFIG_EKF2_MULTI_INSTANCE)
+	static int allocateMultiInstances(const SpawnConfig &config);
+	static int attemptManualInstanceCreation(const SpawnConfig &config, InstanceAllocationState &state);  // ADD THIS LINE
+	static int attemptAutomaticInstanceCreation(const SpawnConfig &config,
+			InstanceAllocationState &state); // ADD THIS LINE
+	static bool shouldContinueAllocation(const InstanceAllocationState &state,
+					     int multi_instances,
+					     uORB::SubscriptionData<vehicle_status_s> &vehicle_status_sub);
+	static bool attemptInstanceCreation(const SpawnConfig &config, InstanceAllocationState &state);
+	static bool createEKF2Instance(uint8_t imu, uint8_t mag, InstanceAllocationState &state);
+	static bool isSensorDataValid(uint8_t imu, uint8_t mag, int32_t mag_instances);
+	static bool isVehicleArmed(uORB::SubscriptionData<vehicle_status_s> &vehicle_status_sub);
+	static bool isHilModeActive(uORB::SubscriptionData<vehicle_status_s> &vehicle_status_sub);
+	static void logInstanceCreation(int instance, uint8_t imu, uint8_t mag);
+#endif
+
 #if defined(CONFIG_EKF2_BAROMETER)
 	void PublishBaroBias(const hrt_abstime &timestamp);
 #endif // CONFIG_EKF2_BAROMETER
@@ -489,6 +527,17 @@ private:
 		(ParamExtFloat<px4::params::EKF2_DELAY_MAX>) _param_ekf2_delay_max,
 		(ParamExtInt<px4::params::EKF2_IMU_CTRL>) _param_ekf2_imu_ctrl,
 		(ParamExtFloat<px4::params::EKF2_VEL_LIM>) _param_ekf2_vel_lim,
+
+		/// Dimitris
+		(ParamInt<px4::params::EKF2_0_IMU>) _param_ekf2_0_imu,
+		(ParamInt<px4::params::EKF2_0_MAG>) _param_ekf2_0_mag,
+		(ParamInt<px4::params::EKF2_1_IMU>) _param_ekf2_1_imu,
+		(ParamInt<px4::params::EKF2_1_MAG>) _param_ekf2_1_mag,
+		(ParamInt<px4::params::EKF2_2_IMU>) _param_ekf2_2_imu,
+		(ParamInt<px4::params::EKF2_2_MAG>) _param_ekf2_2_mag,
+		(ParamInt<px4::params::EKF2_3_IMU>) _param_ekf2_3_imu,
+		(ParamInt<px4::params::EKF2_3_MAG>) _param_ekf2_3_mag,
+
 
 #if defined(CONFIG_EKF2_AUXVEL)
 		(ParamExtFloat<px4::params::EKF2_AVEL_DELAY>)
