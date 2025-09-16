@@ -1,0 +1,435 @@
+module_name: ekf2
+parameters:
+- group: RESEARCH
+  definitions:
+    EKFR_EN:
+      description:
+        short: Number of EKF research instances (Dimitris)
+        long: Specifies the number of additional research EKF instances to create alongside the primary instance. Set to 0 to disable research mode, 1-2 to create that many research instances. IMPORTANT! When using different magnetometers for research instances (EKFR_MAG_*),  you must set SENS_MAG_MODE=0 to enable proper magnetometer instance selection.
+      type: int32
+      default: 0
+      min: 0
+      max: 3
+    EKFR_1_GPS_V_N:
+      description:
+        short: Measurement noise for GNSS velocity for research instance 1 (Dimitris)
+      type: float
+      default: 0.3
+      min: 0.01
+      max: 5.0
+      unit: m/s
+      decimal: 2
+    EKFR_2_GPS_V_N:
+      description:
+        short: Measurement noise for GNSS velocity for research instance 2 (Dimitris)
+      type: float
+      default: 0.3
+      min: 0.01
+      max: 5.0
+      unit: m/s
+      decimal: 2
+    EKFR_3_GPS_V_N:
+      description:
+        short: Measurement noise for GNSS velocity for research instance 3 (Dimitris)
+      type: float
+      default: 0.3
+      min: 0.01
+      max: 5.0
+      unit: m/s
+      decimal: 2
+    EKFR_1_GPS_P_N:
+      description:
+        short: Measurement noise for GNSS position for research instance 1 (Dimitris)
+      type: float
+      default: 0.5
+      min: 0.01
+      max: 10.0
+      unit: m
+      decimal: 2
+    EKFR_2_GPS_P_N:
+      description:
+        short: Measurement noise for GNSS position for reserach instance 2 (Dimitris)
+      type: float
+      default: 0.5
+      min: 0.01
+      max: 10.0
+      unit: m
+      decimal: 2
+    EKFR_3_GPS_P_N:
+      description:
+        short: Measurement noise for GNSS position for reserach instance 3 (Dimitris)
+      type: float
+      default: 0.5
+      min: 0.01
+      max: 10.0
+      unit: m
+      decimal: 2
+    EKFR_1_HGT_REF:
+      description:
+        short: Determines the reference source of height data used by the EKFR (Dimitris)
+        long: When multiple height sources are enabled at the same time, the height
+          estimate will always converge towards the reference height source selected
+          by this parameter. The range sensor and vision options should only be used
+          when for operation over a flat surface as the local NED origin will move
+          up and down with ground level.
+      type: enum
+      values:
+        0: Barometric pressure
+        1: GPS
+        2: Range sensor
+        3: Vision
+      default: 1
+      reboot_required: true
+    EKFR_2_HGT_REF:
+      description:
+        short: Determines the reference source of height data used by the EKFR (Dimitris)
+        long: When multiple height sources are enabled at the same time, the height
+          estimate will always converge towards the reference height source selected
+          by this parameter. The range sensor and vision options should only be used
+          when for operation over a flat surface as the local NED origin will move
+          up and down with ground level.
+      type: enum
+      values:
+        0: Barometric pressure
+        1: GPS
+        2: Range sensor
+        3: Vision
+      default: 1
+      reboot_required: true
+    EKFR_3_HGT_REF:
+      description:
+        short: Determines the reference source of height data used by the EKFR (Dimitris)
+        long: When multiple height sources are enabled at the same time, the height
+          estimate will always converge towards the reference height source selected
+          by this parameter. The range sensor and vision options should only be used
+          when for operation over a flat surface as the local NED origin will move
+          up and down with ground level.
+      type: enum
+      values:
+        0: Barometric pressure
+        1: GPS
+        2: Range sensor
+        3: Vision
+      default: 1
+      reboot_required: true
+    EKFR_1_GPS_CTRL:
+      description:
+        short: GNSS sensor aiding (Dimitris)
+        long: 'Set bits in the following positions to enable: 0 : Longitude and latitude
+          fusion 1 : Altitude fusion 2 : 3D velocity fusion 3 : Dual antenna heading
+          fusion'
+      type: bitmask
+      bit:
+        0: Lon/lat
+        1: Altitude
+        2: 3D velocity
+        3: Dual antenna heading
+      default: 7
+      min: 0
+      max: 15
+    EKFR_2_GPS_CTRL:
+      description:
+        short: GNSS sensor aiding (Dimitris)
+        long: 'Set bits in the following positions to enable: 0 : Longitude and latitude
+          fusion 1 : Altitude fusion 2 : 3D velocity fusion 3 : Dual antenna heading
+          fusion'
+      type: bitmask
+      bit:
+        0: Lon/lat
+        1: Altitude
+        2: 3D velocity
+        3: Dual antenna heading
+      default: 7
+      min: 0
+      max: 15
+    EKFR_3_GPS_CTRL:
+      description:
+        short: GNSS sensor aiding (Dimitris)
+        long: 'Set bits in the following positions to enable: 0 : Longitude and latitude
+          fusion 1 : Altitude fusion 2 : 3D velocity fusion 3 : Dual antenna heading
+          fusion'
+      type: bitmask
+      bit:
+        0: Lon/lat
+        1: Altitude
+        2: 3D velocity
+        3: Dual antenna heading
+      default: 7
+      min: 0
+      max: 15
+    EKFR_IMU_PRIMARY:
+      description:
+        short: IMU instance for primary EKF instance (Dimitris)
+        long: Specifies which IMU instance (0-3) should be used for the primary EKF instance. Must be a valid IMU instance available on the system.
+      type: int32
+      default: 0
+      min: 0
+      max: 3
+      reboot_required: true
+    EKFR_1_IMU:
+      description:
+        short: IMU instance for research EKF instance 1 (Dimitris)
+        long: Specifies which IMU instance (0-3) should be used for research EKF instance 1. Must be a valid IMU instance available on the system.
+      type: int32
+      default: 0
+      min: 0
+      max: 3
+      reboot_required: true
+    EKFR_2_IMU:
+      description:
+        short: IMU instance for research EKF instance 2 (Dimitris)
+        long: Specifies which IMU instance (0-3) should be used for research EKF instance 2. Must be a valid IMU instance available on the system.
+      type: int32
+      default: 0
+      min: 0
+      max: 3
+      reboot_required: true
+    EKFR_3_IMU:
+      description:
+        short: IMU instance for research EKF instance 2 (Dimitris)
+        long: Specifies which IMU instance (0-3) should be used for research EKF instance 2. Must be a valid IMU instance available on the system.
+      type: int32
+      default: 0
+      min: 0
+      max: 3
+      reboot_required: true
+    EKFR_MAG_PRIMARY:
+      description:
+        short: Magnetometer instance for primary EKF instance (Dimitris)
+        long: Specifies which magnetometer instance should be used for the primary EKF instance. Must be a valid magnetometer instance available on the system.
+      type: int32
+      default: 0
+      min: 0
+      max: 3
+      reboot_required: true
+    EKFR_1_MAG:
+      description:
+        short: Magnetometer instance for research EKF instance 1
+        long: Specifies which magnetometer instance should be used for research EKF instance 1. Must be a valid magnetometer instance available on the system.
+      type: int32
+      default: 0
+      min: 0
+      max: 3
+      reboot_required: true
+    EKFR_2_MAG:
+      description:
+        short: Magnetometer instance for research EKF instance 2
+        long: Specifies which magnetometer instance  should be used for research EKF instance 2. Must be a valid magnetometer instance available on the system.
+      type: int32
+      default: 0
+      min: 0
+      max: 3
+      reboot_required: true
+    EKFR_3_MAG:
+      description:
+        short: Magnetometer instance for research EKF instance 2
+        long: Specifies which magnetometer instance  should be used for research EKF instance 2. Must be a valid magnetometer instance available on the system.
+      type: int32
+      default: 0
+      min: 0
+      max: 3
+      reboot_required: true
+    EKFR_1_GPS_POS_X:
+      description:
+        short: X position of GPS antenna in body frame (forward axis with origin relative
+          to vehicle centre of gravity)
+      type: float
+      default: 0.0
+      unit: m
+      decimal: 3
+    EKFR_1_GPS_POS_Y:
+      description:
+        short: Y position of GPS antenna in body frame (right axis with origin relative
+          to vehicle centre of gravity)
+      type: float
+      default: 0.0
+      unit: m
+      decimal: 3
+    EKFR_1_GPS_POS_Z:
+      description:
+        short: Z position of GPS antenna in body frame (down axis with origin relative
+          to vehicle centre of gravity)
+      type: float
+      default: 0.0
+      unit: m
+      decimal: 3
+    EKFR_2_GPS_POS_X:
+      description:
+        short: X position of GPS antenna in body frame (forward axis with origin relative
+          to vehicle centre of gravity)
+      type: float
+      default: 0.0
+      unit: m
+      decimal: 3
+    EKFR_2_GPS_POS_Y:
+      description:
+        short: Y position of GPS antenna in body frame (right axis with origin relative
+          to vehicle centre of gravity)
+      type: float
+      default: 0.0
+      unit: m
+      decimal: 3
+    EKFR_2_GPS_POS_Z:
+      description:
+        short: Z position of GPS antenna in body frame (down axis with origin relative
+          to vehicle centre of gravity)
+      type: float
+      default: 0.0
+      unit: m
+      decimal: 3
+    EKFR_3_GPS_POS_X:
+      description:
+        short: X position of GPS antenna in body frame (forward axis with origin relative
+          to vehicle centre of gravity)
+      type: float
+      default: 0.0
+      unit: m
+      decimal: 3
+    EKFR_3_GPS_POS_Y:
+      description:
+        short: Y position of GPS antenna in body frame (right axis with origin relative
+          to vehicle centre of gravity)
+      type: float
+      default: 0.0
+      unit: m
+      decimal: 3
+    EKFR_3_GPS_POS_Z:
+      description:
+        short: Z position of GPS antenna in body frame (down axis with origin relative
+          to vehicle centre of gravity)
+      type: float
+      default: 0.0
+      unit: m
+      decimal: 3
+    EKFR_1_GPS_SRC:
+      description:
+        short: GPS data source for research instance 1
+        long: Selects which vehicle_gps_position instance to use for research EKF instance 1.
+              In multi-instance GPS mode (VEH_GPS_POS_MULTI=1)
+              - 0 = Raw GPS receiver 0 only (no failover)
+              - 1 = Raw GPS receiver 1 only (no failover)
+              Note - This parameter only affects research EKF instances, not the primary flight control instance.
+      type: int32
+      default: 1
+      min: 0
+      max: 1
+      reboot_required: true
+    EKFR_2_GPS_SRC:
+      description:
+        short: GPS data source for research instance 2
+        long: Selects which vehicle_gps_position instance to use for research EKF instance 1.
+              In multi-instance GPS mode (VEH_GPS_POS_MULTI=1)
+              - 0 = Raw GPS receiver 0 only (no failover)
+              - 1 = Raw GPS receiver 1 only (no failover)
+              Note - This parameter only affects research EKF instances, not the primary flight control instance.
+      type: int32
+
+      default: 1
+      min: 0
+      max: 1
+      reboot_required: true
+    EKFR_3_GPS_SRC:
+      description:
+        short: GPS data source for research instance 1
+        long: Selects which vehicle_gps_position instance to use for research EKF instance 1.
+              In multi-instance GPS mode (VEH_GPS_POS_MULTI=1)
+              - 0 = Raw GPS receiver 0 only (no failover)
+              - 0 = Raw GPS receiver 1 only (no failover)
+              Note - This parameter only affects research EKF instances, not the primary flight control instance.
+      type: int32
+      default: 1
+      min: 0
+      max: 1
+      reboot_required: true
+    EKFR_1_GPS_DIV:
+      description:
+        short: How to divide the frequency of incoming gps data
+      type: int32
+      default: 1
+      min: 1
+      max: 10
+      reboot_required: true
+    EKFR_2_GPS_DIV:
+      description:
+        short: How to divide the frequency of incoming gps data
+      type: int32
+      default: 1
+      min: 1
+      max: 10
+      reboot_required: true
+    EKFR_3_GPS_DIV:
+      description:
+        short: How to divide the frequency of incoming gps data
+      type: int32
+      default: 1
+      min: 1
+      max: 10
+      reboot_required: true
+    EKFR_1_MAG_TYPE:
+      description:
+        short: Type of magnetometer fusion
+        long: Integer controlling the type of magnetometer fusion used - magnetic
+          heading or 3-component vector. The fusion of magnetometer data as a three
+          component vector enables vehicle body fixed hard iron errors to be learned,
+          but requires a stable earth field. If set to 'Automatic' magnetic heading
+          fusion is used when on-ground and 3-axis magnetic field fusion in-flight
+          with fallback to magnetic heading fusion if there is insufficient motion
+          to make yaw or magnetic field states observable. If set to 'Magnetic heading'
+          magnetic heading fusion is used at all times. If set to 'None' the magnetometer
+          will not be used under any circumstance. If no external source of yaw is
+          available, it is possible to use post-takeoff horizontal movement combined
+          with GPS velocity measurements to align the yaw angle with the timer required
+          (depending on the amount of movement and GPS data quality).
+      type: enum
+      values:
+        0: Automatic
+        1: Magnetic heading
+        5: None
+      default: 0
+      reboot_required: true
+    EKFR_2_MAG_TYPE:
+      description:
+        short: Type of magnetometer fusion
+        long: Integer controlling the type of magnetometer fusion used - magnetic
+          heading or 3-component vector. The fusion of magnetometer data as a three
+          component vector enables vehicle body fixed hard iron errors to be learned,
+          but requires a stable earth field. If set to 'Automatic' magnetic heading
+          fusion is used when on-ground and 3-axis magnetic field fusion in-flight
+          with fallback to magnetic heading fusion if there is insufficient motion
+          to make yaw or magnetic field states observable. If set to 'Magnetic heading'
+          magnetic heading fusion is used at all times. If set to 'None' the magnetometer
+          will not be used under any circumstance. If no external source of yaw is
+          available, it is possible to use post-takeoff horizontal movement combined
+          with GPS velocity measurements to align the yaw angle with the timer required
+          (depending on the amount of movement and GPS data quality).
+      type: enum
+      values:
+        0: Automatic
+        1: Magnetic heading
+        5: None
+      default: 0
+      reboot_required: true
+    EKFR_3_MAG_TYPE:
+      description:
+        short: Type of magnetometer fusion
+        long: Integer controlling the type of magnetometer fusion used - magnetic
+          heading or 3-component vector. The fusion of magnetometer data as a three
+          component vector enables vehicle body fixed hard iron errors to be learned,
+          but requires a stable earth field. If set to 'Automatic' magnetic heading
+          fusion is used when on-ground and 3-axis magnetic field fusion in-flight
+          with fallback to magnetic heading fusion if there is insufficient motion
+          to make yaw or magnetic field states observable. If set to 'Magnetic heading'
+          magnetic heading fusion is used at all times. If set to 'None' the magnetometer
+          will not be used under any circumstance. If no external source of yaw is
+          available, it is possible to use post-takeoff horizontal movement combined
+          with GPS velocity measurements to align the yaw angle with the timer required
+          (depending on the amount of movement and GPS data quality).
+      type: enum
+      values:
+        0: Automatic
+        1: Magnetic heading
+        5: None
+      default: 0
+      reboot_required: true
+
+
