@@ -44,9 +44,9 @@ static constexpr float kDefaultExternalPosAccuracy = 50.0f; // [m]
 static constexpr float kMaxDelaySecondsExternalPosMeasurement = 15.0f; // [s]
 
 pthread_mutex_t ekf2_module_mutex = PTHREAD_MUTEX_INITIALIZER;
-static px4::atomic<EKF2 *> _objects[EKF2_MAX_INSTANCES] {};
+px4::atomic<EKF2 *> _objects[EKF2_MAX_INSTANCES] {};
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
-static px4::atomic<EKF2Selector *> _ekf2_selector {nullptr};
+px4::atomic<EKF2Selector *> _ekf2_selector {nullptr};
 #endif // CONFIG_EKF2_MULTI_INSTANCE
 
 EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
