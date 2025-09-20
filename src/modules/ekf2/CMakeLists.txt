@@ -259,6 +259,7 @@ px4_add_module(
 		EKF2Selector.cpp
 		EKF2Selector.hpp
 		EKF2_spawn_helpers.cpp
+		EKF2_run_helpers.cpp
 
 		${EKF_GENERATED_FILES}
 

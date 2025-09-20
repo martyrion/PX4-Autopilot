@@ -284,6 +284,8 @@ struct parameters {
 	int32_t ekf2_hgt_ref_r1{static_cast<int32_t>(HeightSensor::BARO)};
 	int32_t ekf2_hgt_ref_r2{static_cast<int32_t>(HeightSensor::BARO)};
 	int32_t ekf2_hgt_ref_r3{static_cast<int32_t>(HeightSensor::BARO)};
+	int32_t ekf2_hgt_ref_r4{static_cast<int32_t>(HeightSensor::BARO)};
+	int32_t ekf2_hgt_ref_r5{static_cast<int32_t>(HeightSensor::BARO)};
 
 
 	int32_t position_sensor_ref{static_cast<int32_t>(PositionSensor::GNSS)};
@@ -339,6 +341,8 @@ struct parameters {
 	int32_t ekf2_gps_ctrl_r1{static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)}; /// Dimitris
 	int32_t ekf2_gps_ctrl_r2{static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)}; /// Dimitris
 	int32_t ekf2_gps_ctrl_r3{static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)}; /// Dimitris
+	int32_t ekf2_gps_ctrl_r4{static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)}; /// Dimitris
+	int32_t ekf2_gps_ctrl_r5{static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)}; /// Dimitris
 
 	int32_t ekf2_gps_mode {static_cast<int32_t>(GnssMode::kAuto)};
 	float ekf2_gps_delay{110.0f};           ///< GPS measurement delay relative to the IMU (mSec)
@@ -411,6 +415,9 @@ struct parameters {
 	int32_t ekf2_mag_type_r1{0};          /// Dimitris
 	int32_t ekf2_mag_type_r2{0};          /// Dimitris
 	int32_t ekf2_mag_type_r3{0};          /// Dimitris
+	int32_t ekf2_mag_type_r4{0};          /// Dimitris
+	int32_t ekf2_mag_type_r5{0};          /// Dimitris
+
 	float ekf2_mag_acclim{0.5f};            ///< when in auto select mode, heading fusion will be used when manoeuvre accel is lower than this (m/sec**2)
 	// compute synthetic magnetomter Z value if possible
 	int32_t ekf2_synt_mag_z{0};

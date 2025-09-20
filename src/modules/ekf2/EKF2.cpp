@@ -80,6 +80,15 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_noaid_noise(_params->ekf2_noaid_noise),
 #if defined(CONFIG_EKF2_GNSS)
 	_param_ekf2_gps_ctrl(_params->ekf2_gps_ctrl),
+
+	// Dimitris
+	_param_ekf2_0_gps_ctrl(_params->ekf2_gps_ctrl),
+	_param_ekf2_1_gps_ctrl(_params->ekf2_gps_ctrl_r1),
+	_param_ekf2_2_gps_ctrl(_params->ekf2_gps_ctrl_r2),
+	_param_ekf2_3_gps_ctrl(_params->ekf2_gps_ctrl_r3),
+	_param_ekf2_4_gps_ctrl(_params->ekf2_gps_ctrl_r4),
+	_param_ekf2_5_gps_ctrl(_params->ekf2_gps_ctrl_r5),
+
 	_param_ekf2_gps_mode(_params->ekf2_gps_mode),
 	_param_ekf2_gps_delay(_params->ekf2_gps_delay),
 	_param_ekf2_gps_pos_x(_params->gps_pos_body(0)),
@@ -138,6 +147,15 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_mag_gate(_params->ekf2_mag_gate),
 	_param_ekf2_decl_type(_params->ekf2_decl_type),
 	_param_ekf2_mag_type(_params->ekf2_mag_type),
+
+	// Dimitris
+	_param_ekf2_0_mag_type(_params->ekf2_mag_type),
+	_param_ekf2_1_mag_type(_params->ekf2_mag_type_r1),
+	_param_ekf2_2_mag_type(_params->ekf2_mag_type_r2),
+	_param_ekf2_3_mag_type(_params->ekf2_mag_type_r3),
+	_param_ekf2_4_mag_type(_params->ekf2_mag_type_r4),
+	_param_ekf2_5_mag_type(_params->ekf2_mag_type_r5),
+
 	_param_ekf2_mag_acclim(_params->ekf2_mag_acclim),
 	_param_ekf2_mag_check(_params->ekf2_mag_check),
 	_param_ekf2_mag_chk_str(_params->ekf2_mag_chk_str),
@@ -145,6 +163,15 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_synt_mag_z(_params->ekf2_synt_mag_z),
 #endif // CONFIG_EKF2_MAGNETOMETER
 	_param_ekf2_hgt_ref(_params->ekf2_hgt_ref),
+
+	// Dimitris
+	_param_ekf2_0_hgt_ref(_params->ekf2_hgt_ref),
+	_param_ekf2_1_hgt_ref(_params->ekf2_hgt_ref_r1),
+	_param_ekf2_2_hgt_ref(_params->ekf2_hgt_ref_r2),
+	_param_ekf2_3_hgt_ref(_params->ekf2_hgt_ref_r3),
+	_param_ekf2_4_hgt_ref(_params->ekf2_hgt_ref_r4),
+	_param_ekf2_5_hgt_ref(_params->ekf2_hgt_ref_r5),
+
 	_param_ekf2_noaid_tout(_params->ekf2_noaid_tout),
 #if defined(CONFIG_EKF2_TERRAIN) || defined(CONFIG_EKF2_OPTICAL_FLOW) || defined(CONFIG_EKF2_RANGE_FINDER)
 	_param_ekf2_min_rng(_params->ekf2_min_rng),
@@ -432,6 +459,7 @@ int EKF2::print_status(bool verbose)
 	return 0;
 }
 
+
 void EKF2::Run()
 {
 	if (should_exit()) {
@@ -449,6 +477,8 @@ void EKF2::Run()
 
 		// update parameters from storage
 		updateParams();
+
+		applyCustomParameters(); // Dimitris
 
 		VerifyParams();
 
@@ -2752,18 +2782,26 @@ int EKF2::custom_command(int argc, char *argv[])
 
 int EKF2::task_spawn(int argc, char *argv[])
 {
+	// Parse command line arguments
 	SpawnConfig config = parseSpawnArguments(argc, argv);
 
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
+
+	// Try to configure multi-instance mode
 	if (configureMultiInstance(config) && !config.replay_mode) {
+
+		// Initialize EKF2 selector
 		if (!initializeEKF2Selector()) {
 			return PX4_ERROR;
 		}
 
-		return allocateMultiInstances(config);
+		// Create multiple instances based on EKF2_INST_NO parameter and manual sensor assignments
+		return createMultipleInstances(config);
+
 	} else
 #endif // CONFIG_EKF2_MULTI_INSTANCE
 	{
+		// Create single instance (either replay mode or multi-instance not configured)
 		return createSingleInstance(config.replay_mode);
 	}
 }

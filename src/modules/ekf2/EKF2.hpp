@@ -166,47 +166,40 @@ private:
 
 	void AdvertiseTopics();
 	void VerifyParams();
+	void applyCustomParameters(); // Dimitris - Apply custom parameters for all instances
 
 	void PublishAidSourceStatus(const hrt_abstime &timestamp);
 	void PublishAttitude(const hrt_abstime &timestamp);
 
-private:
 	struct SpawnConfig {
 		bool replay_mode = false;
 		bool multi_mode = false;
-		int32_t imu_instances = 0;
-		int32_t mag_instances = 0;
+		int32_t instance_count = 1;     // New: number of instances to create
+		int32_t imu_instances = 1;
+		int32_t mag_instances = 1;
 	};
 
-	struct InstanceAllocationState {
-		int multi_instances_allocated = 0;
-		bool ekf2_instance_created[MAX_NUM_IMUS][MAX_NUM_MAGS] = {};
-		hrt_abstime time_started = 0;
-	};
-
-	// Static helper functions for task spawning
+// Configuration functions
 	static SpawnConfig parseSpawnArguments(int argc, char *argv[]);
 	static bool configureMultiInstance(SpawnConfig &config);
 	static bool configureImuInstances(SpawnConfig &config);
 	static void configureMagInstances(SpawnConfig &config);
+
+// Instance creation functions
 	static bool initializeEKF2Selector();
 	static int createSingleInstance(bool replay_mode);
 
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
-	static int allocateMultiInstances(const SpawnConfig &config);
-	static int attemptManualInstanceCreation(const SpawnConfig &config, InstanceAllocationState &state);  // ADD THIS LINE
-	static int attemptAutomaticInstanceCreation(const SpawnConfig &config,
-			InstanceAllocationState &state); // ADD THIS LINE
-	static bool shouldContinueAllocation(const InstanceAllocationState &state,
-					     int multi_instances,
-					     uORB::SubscriptionData<vehicle_status_s> &vehicle_status_sub);
-	static bool attemptInstanceCreation(const SpawnConfig &config, InstanceAllocationState &state);
-	static bool createEKF2Instance(uint8_t imu, uint8_t mag, InstanceAllocationState &state);
+	static int createMultipleInstances(const SpawnConfig &config);
+
+// Utility functions
 	static bool isSensorDataValid(uint8_t imu, uint8_t mag, int32_t mag_instances);
 	static bool isVehicleArmed(uORB::SubscriptionData<vehicle_status_s> &vehicle_status_sub);
 	static bool isHilModeActive(uORB::SubscriptionData<vehicle_status_s> &vehicle_status_sub);
 	static void logInstanceCreation(int instance, uint8_t imu, uint8_t mag);
-#endif
+#endif // CONFIG_EKF2_MULTI_INSTANCE
+
+
 
 #if defined(CONFIG_EKF2_BAROMETER)
 	void PublishBaroBias(const hrt_abstime &timestamp);
@@ -420,6 +413,8 @@ private:
 	hrt_abstime _status_sideslip_pub_last {0};
 #endif // CONFIG_EKF2_SIDESLIP
 
+
+
 	orb_advert_t _mavlink_log_pub{nullptr};
 
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
@@ -522,6 +517,7 @@ private:
 	parameters *_params;	///< pointer to ekf parameter struct (located in _ekf class instance)
 
 	DEFINE_PARAMETERS(
+
 		(ParamBool<px4::params::EKF2_LOG_VERBOSE>) _param_ekf2_log_verbose,
 		(ParamExtInt<px4::params::EKF2_PREDICT_US>) _param_ekf2_predict_us,
 		(ParamExtFloat<px4::params::EKF2_DELAY_MAX>) _param_ekf2_delay_max,
@@ -529,6 +525,7 @@ private:
 		(ParamExtFloat<px4::params::EKF2_VEL_LIM>) _param_ekf2_vel_lim,
 
 		/// Dimitris
+		(ParamInt<px4::params::EKF2_INST_NO>) _param_ekf2_inst_no,
 		(ParamInt<px4::params::EKF2_0_IMU>) _param_ekf2_0_imu,
 		(ParamInt<px4::params::EKF2_0_MAG>) _param_ekf2_0_mag,
 		(ParamInt<px4::params::EKF2_1_IMU>) _param_ekf2_1_imu,
@@ -537,6 +534,10 @@ private:
 		(ParamInt<px4::params::EKF2_2_MAG>) _param_ekf2_2_mag,
 		(ParamInt<px4::params::EKF2_3_IMU>) _param_ekf2_3_imu,
 		(ParamInt<px4::params::EKF2_3_MAG>) _param_ekf2_3_mag,
+		(ParamInt<px4::params::EKF2_4_IMU>) _param_ekf2_4_imu,
+		(ParamInt<px4::params::EKF2_4_MAG>) _param_ekf2_4_mag,
+		(ParamInt<px4::params::EKF2_5_IMU>) _param_ekf2_5_imu,
+		(ParamInt<px4::params::EKF2_5_MAG>) _param_ekf2_5_mag,
 
 
 #if defined(CONFIG_EKF2_AUXVEL)
@@ -563,6 +564,15 @@ private:
 
 #if defined(CONFIG_EKF2_GNSS)
 		(ParamExtInt<px4::params::EKF2_GPS_CTRL>) _param_ekf2_gps_ctrl,
+
+		// Dimitris
+		(ParamExtInt<px4::params::EKF2_0_GPS_CTRL>) _param_ekf2_0_gps_ctrl,
+		(ParamExtInt<px4::params::EKF2_1_GPS_CTRL>) _param_ekf2_1_gps_ctrl,
+		(ParamExtInt<px4::params::EKF2_2_GPS_CTRL>) _param_ekf2_2_gps_ctrl,
+		(ParamExtInt<px4::params::EKF2_3_GPS_CTRL>) _param_ekf2_3_gps_ctrl,
+		(ParamExtInt<px4::params::EKF2_4_GPS_CTRL>) _param_ekf2_4_gps_ctrl,
+		(ParamExtInt<px4::params::EKF2_5_GPS_CTRL>) _param_ekf2_5_gps_ctrl,
+
 		(ParamExtInt<px4::params::EKF2_GPS_MODE>) _param_ekf2_gps_mode,
 		(ParamExtFloat<px4::params::EKF2_GPS_DELAY>) _param_ekf2_gps_delay,
 
@@ -572,7 +582,6 @@ private:
 
 		(ParamExtFloat<px4::params::EKF2_GPS_V_NOISE>) _param_ekf2_gps_v_noise,
 		(ParamExtFloat<px4::params::EKF2_GPS_P_NOISE>) _param_ekf2_gps_p_noise,
-
 		(ParamExtFloat<px4::params::EKF2_GPS_P_GATE>) _param_ekf2_gps_p_gate,
 		(ParamExtFloat<px4::params::EKF2_GPS_V_GATE>) _param_ekf2_gps_v_gate,
 
@@ -626,7 +635,7 @@ private:
 
 #if defined(CONFIG_EKF2_SIDESLIP)
 		(ParamExtFloat<px4::params::EKF2_BETA_GATE>) _param_ekf2_beta_gate,
-		(ParamExtFloat<px4::params::EKF2_BETA_NOISE>) _param_ekf2_beta_noise,
+		(ParamExtFloat < px4::params::EKF2_BETA_NOISE >) _param_ekf2_beta_noise,
 		(ParamExtInt<px4::params::EKF2_FUSE_BETA>) _param_ekf2_fuse_beta,
 #endif // CONFIG_EKF2_SIDESLIP
 
@@ -641,6 +650,16 @@ private:
 		(ParamExtFloat<px4::params::EKF2_MAG_GATE>) _param_ekf2_mag_gate,
 		(ParamExtInt<px4::params::EKF2_DECL_TYPE>) _param_ekf2_decl_type,
 		(ParamExtInt<px4::params::EKF2_MAG_TYPE>) _param_ekf2_mag_type,
+
+		// Dimitris
+
+		(ParamExtInt<px4::params::EKF2_0_MAG_TYPE>) _param_ekf2_0_mag_type,
+		(ParamExtInt<px4::params::EKF2_1_MAG_TYPE>) _param_ekf2_1_mag_type,
+		(ParamExtInt<px4::params::EKF2_2_MAG_TYPE>) _param_ekf2_2_mag_type,
+		(ParamExtInt<px4::params::EKF2_3_MAG_TYPE>) _param_ekf2_3_mag_type,
+		(ParamExtInt<px4::params::EKF2_4_MAG_TYPE>) _param_ekf2_4_mag_type,
+		(ParamExtInt<px4::params::EKF2_5_MAG_TYPE>) _param_ekf2_5_mag_type,
+
 		(ParamExtFloat<px4::params::EKF2_MAG_ACCLIM>) _param_ekf2_mag_acclim,
 		(ParamExtInt<px4::params::EKF2_MAG_CHECK>) _param_ekf2_mag_check,
 		(ParamExtFloat<px4::params::EKF2_MAG_CHK_STR>) _param_ekf2_mag_chk_str,
@@ -649,6 +668,14 @@ private:
 #endif // CONFIG_EKF2_MAGNETOMETER
 
 		(ParamExtInt<px4::params::EKF2_HGT_REF>) _param_ekf2_hgt_ref,    ///< selects the primary source for height data
+
+		// Dimitris
+		(ParamExtInt<px4::params::EKF2_0_HGT_REF>) _param_ekf2_0_hgt_ref,
+		(ParamExtInt<px4::params::EKF2_1_HGT_REF>) _param_ekf2_1_hgt_ref,
+		(ParamExtInt<px4::params::EKF2_2_HGT_REF>) _param_ekf2_2_hgt_ref,
+		(ParamExtInt<px4::params::EKF2_3_HGT_REF>) _param_ekf2_3_hgt_ref,
+		(ParamExtInt<px4::params::EKF2_4_HGT_REF>) _param_ekf2_4_hgt_ref,
+		(ParamExtInt<px4::params::EKF2_5_HGT_REF>) _param_ekf2_5_hgt_ref,
 
 		(ParamExtInt<px4::params::EKF2_NOAID_TOUT>)
 		_param_ekf2_noaid_tout,	///< maximum lapsed time from last fusion of measurements that constrain drift before the EKF will report the horizontal nav solution invalid (uSec)

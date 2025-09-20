@@ -33,50 +33,12 @@
 
 /**
  * @file EKF2_spawn_helpers.cpp
- * Helper functions for EKF2 task spawning and instance management.
+ * Helper functions for EKF2 task spawning with manual sensor assignment.
  */
 
 #include "EKF2.hpp"
 
 using namespace time_literals;
-
-// Simple struct for sensor selection
-struct SensorSelection {
-	uint8_t imu;
-	uint8_t mag;
-};
-
-static SensorSelection getInstanceConfiguration(int instance)
-{
-	char imu_param[16], mag_param[16];
-	snprintf(imu_param, sizeof(imu_param), "EKF2_%d_IMU", instance);
-	snprintf(mag_param, sizeof(mag_param), "EKF2_%d_MAG", instance);
-
-	int32_t imu_index = instance;  // Default to instance number
-	int32_t mag_index = 0;         // Default to MAG 0
-
-	param_get(param_find(imu_param), &imu_index);
-	param_get(param_find(mag_param), &mag_index);
-
-	return {
-		static_cast<uint8_t>(imu_index),
-		static_cast<uint8_t>(mag_index)
-	};
-}
-
-static bool hasManualConfiguration()
-{
-	// Check if any EKF2_X_IMU parameter exists
-	for (int instance = 0; instance < 4; instance++) {
-		char imu_param[16];
-		snprintf(imu_param, sizeof(imu_param), "EKF2_%d_IMU", instance);
-
-		if (param_find(imu_param) != PARAM_INVALID) {
-			return true;
-		}
-	}
-	return false;
-}
 
 // ==== Configuration Functions ====
 
@@ -103,6 +65,26 @@ bool EKF2::configureMultiInstance(SpawnConfig &config)
 	}
 
 	config.multi_mode = true;
+
+	// Get number of instances to create
+	param_t param_inst_no = param_find("EKF2_INST_NO");
+	if (param_inst_no != PARAM_INVALID) {
+		param_get(param_inst_no, &config.instance_count);
+	} else {
+		config.instance_count = 1; // Default value
+		PX4_WARN("EKF2_INST_NO parameter not found, using default value 1");
+	}
+
+	// Limit to maximum of 6 instances as specified
+	if (config.instance_count < 1 || config.instance_count > 6) {
+		const int32_t limited_instances = math::constrain(config.instance_count,
+		                                                 static_cast<int32_t>(1),
+		                                                 static_cast<int32_t>(6));
+		PX4_WARN("EKF2_INST_NO limited %" PRId32 " -> %" PRId32,
+		         config.instance_count, limited_instances);
+		param_set_no_notification(param_find("EKF2_INST_NO"), &limited_instances);
+		config.instance_count = limited_instances;
+	}
 
 	// Configure IMU instances
 	if (!configureImuInstances(config)) {
@@ -221,184 +203,116 @@ int EKF2::createSingleInstance(bool replay_mode)
 
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
 
-// ==== Multi-Instance Functions ====
+// ==== Multi-Instance Functions with Manual Sensor Assignment ====
 
-int EKF2::allocateMultiInstances(const SpawnConfig &config)
+int EKF2::createMultipleInstances(const SpawnConfig &config)
 {
-	InstanceAllocationState state;
-	state.time_started = hrt_absolute_time();
-
-	if (hasManualConfiguration()) {
-		// Use manual configuration
-		return attemptManualInstanceCreation(config, state);
-	} else {
-		// Use automatic configuration
-		return attemptAutomaticInstanceCreation(config, state);
-	}
-}
-
-int EKF2::attemptManualInstanceCreation(const SpawnConfig &config, InstanceAllocationState &state)
-{
-	bool created_any_instance = false;
-	uORB::SubscriptionData<vehicle_status_s> vehicle_status_sub{ORB_ID(vehicle_status)};
-
-	// Always create 4 instances when in multi-instance mode
-	const int instances_to_create = math::min(4, static_cast<int>(EKF2_MAX_INSTANCES));
-
-	while (shouldContinueAllocation(state, instances_to_create, vehicle_status_sub)) {
-
-		for (int instance = 0; instance < instances_to_create; instance++) {
-			SensorSelection selection = getInstanceConfiguration(instance);
-
-			// Skip if already created for this sensor combination
-			if (state.ekf2_instance_created[selection.imu][selection.mag]) {
-				continue;
-			}
-
-			// Validate sensor availability
-			if (selection.imu >= static_cast<uint8_t>(config.imu_instances) ||
-			    selection.mag >= static_cast<uint8_t>(config.mag_instances)) {
-				PX4_WARN("EKF2[%d]: IMU%u MAG%u not available (have %" PRId32 " IMUs, %" PRId32 " MAGs)",
-				         instance, selection.imu, selection.mag,
-				         config.imu_instances, config.mag_instances);
-				continue;
-			}
-
-			// Check sensor data availability
-			if (!isSensorDataValid(selection.imu, selection.mag, config.mag_instances)) {
-				px4_usleep(1000);
-				continue;
-			}
-
-			// Create instance
-			if (createEKF2Instance(selection.imu, selection.mag, state)) {
-				PX4_INFO("EKF2[%d]: IMU%u+MAG%u (manual)",
-				         instance, selection.imu, selection.mag);
-				state.ekf2_instance_created[selection.imu][selection.mag] = true;
-				created_any_instance = true;
-
-				// Stop if we've reached the limit
-				if (state.multi_instances_allocated >= instances_to_create) {
-					return PX4_OK;
-				}
-			} else {
-				px4_usleep(100000);
-				continue;
-			}
-		}
-
-		px4_usleep(10000);
-	}
-
-	return created_any_instance ? PX4_OK : PX4_ERROR;
-}
-
-int EKF2::attemptAutomaticInstanceCreation(const SpawnConfig &config, InstanceAllocationState &state)
-{
-	// Always create 4 instances when in multi-instance mode
-	const int instances_to_create = math::min(4, static_cast<int>(EKF2_MAX_INSTANCES));
-
-	// allocate EKF2 instances until all found or arming
-	uORB::SubscriptionData<vehicle_status_s> vehicle_status_sub{ORB_ID(vehicle_status)};
-
-	while (shouldContinueAllocation(state, instances_to_create, vehicle_status_sub)) {
-		if (attemptInstanceCreation(config, state)) {
-			// Successfully created at least one instance this iteration
-		} else {
-			px4_usleep(10000); // Wait before next attempt if no instances created
-		}
-	}
-
-	return (state.multi_instances_allocated > 0) ? PX4_OK : PX4_ERROR;
-}
-
-bool EKF2::shouldContinueAllocation(const InstanceAllocationState &state,
-                                   int multi_instances,
-                                   uORB::SubscriptionData<vehicle_status_s> &vehicle_status_sub)
-{
-	return (state.multi_instances_allocated < multi_instances)
-	       && !isVehicleArmed(vehicle_status_sub)
-	       && ((hrt_elapsed_time(&state.time_started) < 30_s) || isHilModeActive(vehicle_status_sub));
-}
-
-bool EKF2::attemptInstanceCreation(const SpawnConfig &config, InstanceAllocationState &state)
-{
-	bool created_instance = false;
-
-	// iterate through all imu/mag combinations configured
-	for (uint8_t mag = 0; mag < static_cast<uint8_t>(config.mag_instances); mag++) {
-		for (uint8_t imu = 0; imu < static_cast<uint8_t>(config.imu_instances); imu++) {
-
-			// Respect max global limit
-			if (state.multi_instances_allocated >= static_cast<int>(EKF2_MAX_INSTANCES)) {
-				return created_instance;
-			}
-
-			// Skip if already created for this sensor pair
-			if (state.ekf2_instance_created[imu][mag]) {
-				continue;
-			}
-
-			// Check sensor data availability
-			if (!isSensorDataValid(imu, mag, config.mag_instances)) {
-				// sensor not ready yet -> try others or retry later
-				continue;
-			}
-
-			// Create instance
-			if (createEKF2Instance(imu, mag, state)) {
-				PX4_INFO("EKF2[auto]: IMU%u+MAG%u", imu, mag);
-				state.ekf2_instance_created[imu][mag] = true;
-				created_instance = true;
-
-				// If we've reached the requested number of instances, we can return quickly
-				const int requested_instances = math::min(config.imu_instances * config.mag_instances,
-				                                         static_cast<int32_t>(EKF2_MAX_INSTANCES));
-				if (state.multi_instances_allocated >= requested_instances) {
-					return created_instance;
-				}
-			} else {
-				// allocation failed: avoid spinning too fast
-				px4_usleep(100000);
-			}
-		}
-	}
-
-	return created_instance;
-}
-
-bool EKF2::createEKF2Instance(uint8_t imu, uint8_t mag, InstanceAllocationState &state)
-{
-	// Access the external static variable declared in EKF2.cpp
+	// Access external variables
 	extern px4::atomic<EKF2 *> _objects[EKF2_MAX_INSTANCES];
 	extern px4::atomic<EKF2Selector *> _ekf2_selector;
 
-	EKF2 *ekf2_inst = new EKF2(true, px4::ins_instance_to_wq(imu), false);
+	const hrt_abstime time_started = hrt_absolute_time();
+	int instances_created = 0;
 
-	if (ekf2_inst && ekf2_inst->multi_init(imu, mag)) {
-		int actual_instance = ekf2_inst->instance(); // match uORB instance numbering
+	// Get vehicle status for arming check
+	uORB::SubscriptionData<vehicle_status_s> vehicle_status_sub{ORB_ID(vehicle_status)};
 
-		if ((actual_instance >= 0) && (_objects[actual_instance].load() == nullptr)) {
-			_objects[actual_instance].store(ekf2_inst);
-			state.multi_instances_allocated++;
+	PX4_INFO("Creating %" PRId32 " EKF2 instances using manual sensor assignments",
+	         config.instance_count);
 
-			logInstanceCreation(actual_instance, imu, mag);
+	// Create the requested number of instances (up to 6)
+	for (int instance = 0; instance < config.instance_count && instance < 6; instance++) {
 
-			if (_ekf2_selector.load()) {
-				_ekf2_selector.load()->ScheduleNow();
+		if (isVehicleArmed(vehicle_status_sub) &&
+		    !((hrt_elapsed_time(&time_started) < 30_s) || isHilModeActive(vehicle_status_sub))) {
+			break;
+		}
+
+		vehicle_status_sub.update();
+
+		// Get manual sensor assignments for this instance
+		char imu_param_name[16], mag_param_name[16];
+		snprintf(imu_param_name, sizeof(imu_param_name), "EKF2_%d_IMU", instance);
+		snprintf(mag_param_name, sizeof(mag_param_name), "EKF2_%d_MAG", instance);
+
+		// Read the specific IMU and MAG parameters for this instance
+		int32_t imu_idx = instance;  // Default fallback
+		int32_t mag_idx = 0;         // Default fallback
+
+		param_t param_imu = param_find(imu_param_name);
+		param_t param_mag = param_find(mag_param_name);
+
+		if (param_imu != PARAM_INVALID) {
+			param_get(param_imu, &imu_idx);
+		} else {
+			PX4_WARN("Parameter %s not found, using default IMU %d", imu_param_name, instance);
+		}
+
+		if (param_mag != PARAM_INVALID) {
+			param_get(param_mag, &mag_idx);
+		} else {
+			PX4_WARN("Parameter %s not found, using default MAG 0", mag_param_name);
+		}
+
+		// Validate sensor indices
+		if (imu_idx < 0 || imu_idx >= config.imu_instances) {
+			PX4_ERR("Instance %d: Invalid IMU index %" PRId32 " (available: 0-%" PRId32 ")",
+			        instance, imu_idx, config.imu_instances - 1);
+			continue;
+		}
+
+		if (mag_idx < 0 || mag_idx >= config.mag_instances) {
+			PX4_ERR("Instance %d: Invalid MAG index %" PRId32 " (available: 0-%" PRId32 ")",
+			        instance, mag_idx, config.mag_instances - 1);
+			continue;
+		}
+
+		// Check if sensors are ready
+		if (!isSensorDataValid(static_cast<uint8_t>(imu_idx), static_cast<uint8_t>(mag_idx), config.mag_instances)) {
+			PX4_WARN("Instance %d: Sensors IMU%" PRId32 "+MAG%" PRId32 " not ready, retrying...",
+			         instance, imu_idx, mag_idx);
+			px4_usleep(10000);
+			// Retry sensor check for this instance
+			if (!isSensorDataValid(static_cast<uint8_t>(imu_idx), static_cast<uint8_t>(mag_idx), config.mag_instances)) {
+				PX4_ERR("Instance %d: Sensors IMU%" PRId32 "+MAG%" PRId32 " failed to become ready",
+				        instance, imu_idx, mag_idx);
+				continue;
+			}
+		}
+
+		// Create the EKF2 instance
+		EKF2 *ekf2_inst = new EKF2(true, px4::ins_instance_to_wq(static_cast<uint8_t>(imu_idx)), false);
+
+		if (ekf2_inst && ekf2_inst->multi_init(static_cast<uint8_t>(imu_idx), static_cast<uint8_t>(mag_idx))) {
+			int actual_instance = ekf2_inst->instance();
+
+			if ((actual_instance >= 0) && (_objects[actual_instance].load() == nullptr)) {
+				_objects[actual_instance].store(ekf2_inst);
+				instances_created++;
+
+				PX4_INFO("EKF2[%d]: Created with IMU%" PRId32 " + MAG%" PRId32 " (manual assignment)",
+				         actual_instance, imu_idx, mag_idx);
+
+				logInstanceCreation(actual_instance, static_cast<uint8_t>(imu_idx), static_cast<uint8_t>(mag_idx));
+
+				if (_ekf2_selector.load()) {
+					_ekf2_selector.load()->ScheduleNow();
+				}
+
+			} else {
+				PX4_ERR("Instance %d: numbering problem (actual instance: %d)", instance, actual_instance);
+				delete ekf2_inst;
 			}
 
-			return true;
 		} else {
-			PX4_ERR("instance numbering problem instance: %d", actual_instance);
+			PX4_ERR("Instance %d: Failed to create with IMU%" PRId32 " MAG%" PRId32,
+			        instance, imu_idx, mag_idx);
 			delete ekf2_inst;
-			return false;
 		}
-	} else {
-		PX4_ERR("alloc and init failed imu: %" PRIu8 " mag:%" PRIu8, imu, mag);
-		delete ekf2_inst;
-		return false;
 	}
+
+	PX4_INFO("Successfully created %d EKF2 instances using manual sensor assignments", instances_created);
+	return (instances_created > 0) ? PX4_OK : PX4_ERROR;
 }
 
 // ==== Utility Functions ====
