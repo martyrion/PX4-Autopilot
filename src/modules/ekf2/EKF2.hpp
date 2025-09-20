@@ -162,6 +162,8 @@ private:
 	static constexpr uint8_t MAX_NUM_IMUS = 4;
 	static constexpr uint8_t MAX_NUM_MAGS = 4;
 
+	int _current_gps_instance{0};  // GPS instance to use for this EKF instance
+
 	void Run() override;
 
 	void AdvertiseTopics();
@@ -492,6 +494,7 @@ private:
 	float _last_gnss_hgt_bias_published{};
 
 	uORB::Subscription _vehicle_gps_position_sub{ORB_ID(vehicle_gps_position)};
+	uORB::SubscriptionMultiArray<sensor_gps_s> _vehicle_gps_position_raw_subs{ORB_ID::vehicle_gps_position_raw}; // Dimitris
 
 	uORB::PublicationMulti<estimator_bias_s> _estimator_gnss_hgt_bias_pub{ORB_ID(estimator_gnss_hgt_bias)};
 	uORB::PublicationMulti<estimator_gps_status_s> _estimator_gps_status_pub{ORB_ID(estimator_gps_status)};
@@ -500,6 +503,7 @@ private:
 	uORB::PublicationMulti<estimator_aid_source3d_s> _estimator_aid_src_gnss_vel_pub{ORB_ID(estimator_aid_src_gnss_vel)};
 
 	uORB::PublicationMulti<yaw_estimator_status_s> _yaw_est_pub{ORB_ID(yaw_estimator_status)};
+
 
 # if defined(CONFIG_EKF2_GNSS_YAW)
 	hrt_abstime _status_gnss_yaw_pub_last {0};
@@ -572,6 +576,13 @@ private:
 		(ParamExtInt<px4::params::EKF2_3_GPS_CTRL>) _param_ekf2_3_gps_ctrl,
 		(ParamExtInt<px4::params::EKF2_4_GPS_CTRL>) _param_ekf2_4_gps_ctrl,
 		(ParamExtInt<px4::params::EKF2_5_GPS_CTRL>) _param_ekf2_5_gps_ctrl,
+		// Dimitris
+		(ParamExtInt<px4::params::EKF2_0_GPS_SRC>) _param_ekf2_0_gps_src,
+		(ParamExtInt<px4::params::EKF2_1_GPS_SRC>) _param_ekf2_1_gps_src,
+		(ParamExtInt<px4::params::EKF2_2_GPS_SRC>) _param_ekf2_2_gps_src,
+		(ParamExtInt<px4::params::EKF2_3_GPS_SRC>) _param_ekf2_3_gps_src,
+		(ParamExtInt<px4::params::EKF2_4_GPS_SRC>) _param_ekf2_4_gps_src,
+		(ParamExtInt<px4::params::EKF2_5_GPS_SRC>) _param_ekf2_5_gps_src,
 
 		(ParamExtInt<px4::params::EKF2_GPS_MODE>) _param_ekf2_gps_mode,
 		(ParamExtFloat<px4::params::EKF2_GPS_DELAY>) _param_ekf2_gps_delay,

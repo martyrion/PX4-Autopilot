@@ -344,6 +344,13 @@ struct parameters {
 	int32_t ekf2_gps_ctrl_r4{static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)}; /// Dimitris
 	int32_t ekf2_gps_ctrl_r5{static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)}; /// Dimitris
 
+	int32_t ekf2_gps_src{0};			/// Dimitris
+	int32_t ekf2_gps_src_r1{0};			/// Dimitris
+	int32_t ekf2_gps_src_r2{0};			/// Dimitris
+	int32_t ekf2_gps_src_r3{0};			/// Dimitris
+	int32_t ekf2_gps_src_r4{0};			/// Dimitris
+	int32_t ekf2_gps_src_r5{0};			/// Dimitris
+
 	int32_t ekf2_gps_mode {static_cast<int32_t>(GnssMode::kAuto)};
 	float ekf2_gps_delay{110.0f};           ///< GPS measurement delay relative to the IMU (mSec)
 

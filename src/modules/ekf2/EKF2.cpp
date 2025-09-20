@@ -89,6 +89,13 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_4_gps_ctrl(_params->ekf2_gps_ctrl_r4),
 	_param_ekf2_5_gps_ctrl(_params->ekf2_gps_ctrl_r5),
 
+	_param_ekf2_0_gps_src(_params->ekf2_gps_src),
+	_param_ekf2_1_gps_src(_params->ekf2_gps_src_r1),
+	_param_ekf2_2_gps_src(_params->ekf2_gps_src_r2),
+	_param_ekf2_3_gps_src(_params->ekf2_gps_src_r3),
+	_param_ekf2_4_gps_src(_params->ekf2_gps_src_r4),
+	_param_ekf2_5_gps_src(_params->ekf2_gps_src_r5),
+
 	_param_ekf2_gps_mode(_params->ekf2_gps_mode),
 	_param_ekf2_gps_delay(_params->ekf2_gps_delay),
 	_param_ekf2_gps_pos_x(_params->gps_pos_body(0)),
@@ -2435,66 +2442,97 @@ void EKF2::UpdateGpsSample(ekf2_timestamps_s &ekf2_timestamps)
 {
 	// EKF GPS message
 	sensor_gps_s vehicle_gps_position;
+	bool got_data = false;
 
-	if (_vehicle_gps_position_sub.update(&vehicle_gps_position)) {
+	// Use GPS source selection for all instances
+	if (_current_gps_instance > 0 && _current_gps_instance < 2) {
+		// Use specific raw GPS instance
+		got_data = _vehicle_gps_position_raw_subs[_current_gps_instance].update(&vehicle_gps_position);
 
-		Vector3f vel_ned;
-
-		if (vehicle_gps_position.vel_ned_valid) {
-			vel_ned = Vector3f(vehicle_gps_position.vel_n_m_s,
-					   vehicle_gps_position.vel_e_m_s,
-					   vehicle_gps_position.vel_d_m_s);
-
-		} else {
-			return; //TODO: change and set to NAN
+		// Debug logging every 5 seconds
+		static hrt_abstime last_debug_time = 0;
+		if (hrt_absolute_time() - last_debug_time > 5_s) {
+			PX4_DEBUG("Instance %d using GPS%d (device: 0x%08lX)",
+				_instance, _current_gps_instance,
+				(unsigned long)vehicle_gps_position.device_id);
+			last_debug_time = hrt_absolute_time();
 		}
+	} else {
+		// Use blended GPS (default for _current_gps_instance == 0)
+		got_data = _vehicle_gps_position_sub.update(&vehicle_gps_position);
 
-		if (fabsf(_param_ekf2_gps_yaw_off.get()) > 0.f) {
-			if (!PX4_ISFINITE(vehicle_gps_position.heading_offset) && PX4_ISFINITE(vehicle_gps_position.heading)) {
-				// Apply offset
-				float yaw_offset = matrix::wrap_pi(math::radians(_param_ekf2_gps_yaw_off.get()));
-				vehicle_gps_position.heading_offset = yaw_offset;
-				vehicle_gps_position.heading = matrix::wrap_pi(vehicle_gps_position.heading - yaw_offset);
-			}
+		// Ensure _current_gps_instance is set to 0 for blended GPS
+		if (_current_gps_instance != 0) {
+			_current_gps_instance = 0;
 		}
+	}
 
-		const float altitude_amsl = static_cast<float>(vehicle_gps_position.altitude_msl_m);
-		const float altitude_ellipsoid = static_cast<float>(vehicle_gps_position.altitude_ellipsoid_m);
+	if (!got_data) {
+		return;
+	}
 
-		gnssSample gnss_sample{
-			.time_us = vehicle_gps_position.timestamp,
-			.lat = vehicle_gps_position.latitude_deg,
-			.lon = vehicle_gps_position.longitude_deg,
-			.alt = altitude_amsl,
-			.vel = vel_ned,
-			.hacc = vehicle_gps_position.eph,
-			.vacc = vehicle_gps_position.epv,
-			.sacc = vehicle_gps_position.s_variance_m_s,
-			.fix_type = vehicle_gps_position.fix_type,
-			.nsats = vehicle_gps_position.satellites_used,
-			.pdop = sqrtf(vehicle_gps_position.hdop *vehicle_gps_position.hdop
-				      + vehicle_gps_position.vdop * vehicle_gps_position.vdop),
-			.yaw = vehicle_gps_position.heading, //TODO: move to different message
-			.yaw_acc = vehicle_gps_position.heading_accuracy,
-			.yaw_offset = vehicle_gps_position.heading_offset,
-			.spoofed = vehicle_gps_position.spoofing_state == sensor_gps_s::SPOOFING_STATE_MULTIPLE,
-		};
+	Vector3f vel_ned;
+	if (vehicle_gps_position.vel_ned_valid) {
+		vel_ned = Vector3f(vehicle_gps_position.vel_n_m_s,
+				   vehicle_gps_position.vel_e_m_s,
+				   vehicle_gps_position.vel_d_m_s);
+	} else {
+		return; //TODO: change and set to NAN
+	}
 
+	// Apply GPS yaw offset if configured
+	if (fabsf(_param_ekf2_gps_yaw_off.get()) > 0.f) {
+		if (!PX4_ISFINITE(vehicle_gps_position.heading_offset) && PX4_ISFINITE(vehicle_gps_position.heading)) {
+			// Apply offset
+			float yaw_offset = matrix::wrap_pi(math::radians(_param_ekf2_gps_yaw_off.get()));
+			vehicle_gps_position.heading_offset = yaw_offset;
+			vehicle_gps_position.heading = matrix::wrap_pi(vehicle_gps_position.heading - yaw_offset);
+		}
+	}
+
+	const float altitude_amsl = static_cast<float>(vehicle_gps_position.altitude_msl_m);
+	const float altitude_ellipsoid = static_cast<float>(vehicle_gps_position.altitude_ellipsoid_m);
+
+	gnssSample gnss_sample{
+		.time_us = vehicle_gps_position.timestamp,
+		.lat = vehicle_gps_position.latitude_deg,
+		.lon = vehicle_gps_position.longitude_deg,
+		.alt = altitude_amsl,
+		.vel = vel_ned,
+		.hacc = vehicle_gps_position.eph,
+		.vacc = vehicle_gps_position.epv,
+		.sacc = vehicle_gps_position.s_variance_m_s,
+		.fix_type = vehicle_gps_position.fix_type,
+		.nsats = vehicle_gps_position.satellites_used,
+		.pdop = sqrtf(vehicle_gps_position.hdop * vehicle_gps_position.hdop
+			      + vehicle_gps_position.vdop * vehicle_gps_position.vdop),
+		.yaw = vehicle_gps_position.heading, //TODO: move to different message
+		.yaw_acc = vehicle_gps_position.heading_accuracy,
+		.yaw_offset = vehicle_gps_position.heading_offset,
+		.spoofed = vehicle_gps_position.spoofing_state == sensor_gps_s::SPOOFING_STATE_MULTIPLE,
+	};
+
+	// Per-instance GNSS gate
+	// If gnss_ctrl is zero for this instance, do not provide GNSS
+	// measurements to the EKF core (prevents both nav fusion and GSF yaw usage)
+	if (_params->ekf2_gps_ctrl == 0) {
+		// Skip passing GNSS data to the EKF core for instances with GNSS disabled
+		PX4_DEBUG("Instance %d: GNSS blocked (gnss_ctrl==0)", _instance);
+	} else {
+		// Normal behavior: provide GNSS sample to EKF core
 		_ekf.setGpsData(gnss_sample);
+	}
 
-		const float geoid_height = altitude_ellipsoid - altitude_amsl;
-
-		if (_last_geoid_height_update_us == 0) {
-			_geoid_height_lpf.reset(geoid_height);
-			_last_geoid_height_update_us = gnss_sample.time_us;
-
-		} else if (gnss_sample.time_us > _last_geoid_height_update_us) {
-			const float dt = 1e-6f * (gnss_sample.time_us - _last_geoid_height_update_us);
-			_geoid_height_lpf.setParameters(dt, kGeoidHeightLpfTimeConstant);
-			_geoid_height_lpf.update(geoid_height);
-			_last_geoid_height_update_us = gnss_sample.time_us;
-		}
-
+	// Geoid height calculation and low-pass filtering
+	const float geoid_height = altitude_ellipsoid - altitude_amsl;
+	if (_last_geoid_height_update_us == 0) {
+		_geoid_height_lpf.reset(geoid_height);
+		_last_geoid_height_update_us = gnss_sample.time_us;
+	} else if (gnss_sample.time_us > _last_geoid_height_update_us) {
+		const float dt = 1e-6f * (gnss_sample.time_us - _last_geoid_height_update_us);
+		_geoid_height_lpf.setParameters(dt, kGeoidHeightLpfTimeConstant);
+		_geoid_height_lpf.update(geoid_height);
+		_last_geoid_height_update_us = gnss_sample.time_us;
 	}
 }
 

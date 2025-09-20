@@ -873,10 +873,47 @@ void EKF2Selector::PrintStatus()
 	for (int i = 0; i < _available_instances; i++) {
 		const EstimatorInstance &inst = _instance[i];
 
-		PX4_INFO("%" PRIu8 ": ACC: %" PRIu32 ", GYRO: %" PRIu32 ", MAG: %" PRIu32 ", %s, test ratio: %.7f (%.5f) %s",
-			 inst.instance, inst.accel_device_id, inst.gyro_device_id, inst.mag_device_id,
-			 inst.healthy.get_state() ? "healthy" : "unhealthy",
-			 (double)inst.combined_test_ratio, (double)inst.relative_test_ratio,
-			 (_selected_instance == i) ? "*" : "");
+		// Read custom parameters directly from parameter system
+		int32_t height_ref = -1, gnss_ctrl = -1, mag_type = -1, gps_src = -1;
+
+		// Build parameter names for this instance
+		char hgt_param_name[32], gps_param_name[32], mag_param_name[32], gps_src_param_name[32];
+		snprintf(hgt_param_name, sizeof(hgt_param_name), "EKF2_%d_HGT_REF", i);
+		snprintf(gps_param_name, sizeof(gps_param_name), "EKF2_%d_GPS_CTRL", i);
+		snprintf(mag_param_name, sizeof(mag_param_name), "EKF2_%d_MAG_TYPE", i);
+		snprintf(gps_src_param_name, sizeof(gps_src_param_name), "EKF2_%d_GPS_SRC", i);
+
+		// Get parameter handles and values
+		param_t hgt_param = param_find(hgt_param_name);
+		param_t gps_param = param_find(gps_param_name);
+		param_t mag_param = param_find(mag_param_name);
+		param_t gps_src_param = param_find(gps_src_param_name);
+
+		if (hgt_param != PARAM_INVALID) {
+			param_get(hgt_param, &height_ref);
+		}
+		if (gps_param != PARAM_INVALID) {
+			param_get(gps_param, &gnss_ctrl);
+		}
+		if (mag_param != PARAM_INVALID) {
+			param_get(mag_param, &mag_type);
+		}
+		if (gps_src_param != PARAM_INVALID) {
+			param_get(gps_src_param, &gps_src);
+		}
+
+		PX4_INFO("%c%" PRIu8 ": ACC: %" PRIu32 ", GYRO: %" PRIu32 ", MAG: %" PRIu32 ", %s, test ratio: %.7f (%.5f) | hgt=%" PRId32 " g_ctrl=%" PRId32 " m_type=%" PRId32 " g_src=%" PRId32,
+			(_selected_instance == i) ? '*' : ' ',
+			inst.instance,
+			inst.accel_device_id,
+			inst.gyro_device_id,
+			inst.mag_device_id,
+			inst.healthy.get_state() ? "+" : "-",
+			(double)inst.combined_test_ratio,
+			(double)inst.relative_test_ratio,
+			height_ref,
+			gnss_ctrl,
+			mag_type,
+			gps_src);
 	}
 }
