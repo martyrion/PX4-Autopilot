@@ -165,6 +165,8 @@ private:
 	void Run() override;
 
 	void AdvertiseTopics();
+	void applyCustomParameters(); // Dimitris - Apply custom parameters for all instances
+	uint8_t _gps_src{0};  ///< 0=default, 10=raw0, 20=raw1
 	void VerifyParams();
 
 	void PublishAidSourceStatus(const hrt_abstime &timestamp);
@@ -458,6 +460,8 @@ private:
 	float _last_gnss_hgt_bias_published{};
 
 	uORB::Subscription _vehicle_gps_position_sub{ORB_ID(vehicle_gps_position)};
+	uORB::SubscriptionMultiArray<sensor_gps_s> _vehicle_gps_position_raw_subs{ORB_ID::vehicle_gps_position_raw}; // Dimitris
+
 
 	uORB::PublicationMulti<estimator_bias_s> _estimator_gnss_hgt_bias_pub{ORB_ID(estimator_gnss_hgt_bias)};
 	uORB::PublicationMulti<estimator_gps_status_s> _estimator_gps_status_pub{ORB_ID(estimator_gps_status)};
@@ -513,6 +517,23 @@ private:
 
 #if defined(CONFIG_EKF2_GNSS)
 		(ParamExtInt<px4::params::EKF2_GPS_CTRL>) _param_ekf2_gps_ctrl,
+
+		// Dimitris
+		(ParamExtInt<px4::params::EKF2_0_GPS_CTRL>) _param_ekf2_0_gps_ctrl,
+		(ParamExtInt<px4::params::EKF2_1_GPS_CTRL>) _param_ekf2_1_gps_ctrl,
+		(ParamExtInt<px4::params::EKF2_2_GPS_CTRL>) _param_ekf2_2_gps_ctrl,
+		(ParamExtInt<px4::params::EKF2_3_GPS_CTRL>) _param_ekf2_3_gps_ctrl,
+		(ParamExtInt<px4::params::EKF2_4_GPS_CTRL>) _param_ekf2_4_gps_ctrl,
+		(ParamExtInt<px4::params::EKF2_5_GPS_CTRL>) _param_ekf2_5_gps_ctrl,
+
+		(ParamInt<px4::params::EKF2_0_GPS_SRC>) _param_ekf2_0_gps_src,
+		(ParamInt<px4::params::EKF2_1_GPS_SRC>) _param_ekf2_1_gps_src,
+		(ParamInt<px4::params::EKF2_2_GPS_SRC>) _param_ekf2_2_gps_src,
+		(ParamInt<px4::params::EKF2_3_GPS_SRC>) _param_ekf2_3_gps_src,
+		(ParamInt<px4::params::EKF2_4_GPS_SRC>) _param_ekf2_4_gps_src,
+		(ParamInt<px4::params::EKF2_5_GPS_SRC>) _param_ekf2_5_gps_src,
+
+
 		(ParamExtFloat<px4::params::EKF2_GPS_DELAY>) _param_ekf2_gps_delay,
 
 		(ParamExtFloat<px4::params::EKF2_GPS_POS_X>) _param_ekf2_gps_pos_x,
@@ -589,6 +610,17 @@ private:
 		(ParamExtFloat<px4::params::EKF2_MAG_GATE>) _param_ekf2_mag_gate,
 		(ParamExtInt<px4::params::EKF2_DECL_TYPE>) _param_ekf2_decl_type,
 		(ParamExtInt<px4::params::EKF2_MAG_TYPE>) _param_ekf2_mag_type,
+
+		// Dimitris
+
+		(ParamExtInt<px4::params::EKF2_0_MAG_TYPE>) _param_ekf2_0_mag_type,
+		(ParamExtInt<px4::params::EKF2_1_MAG_TYPE>) _param_ekf2_1_mag_type,
+		(ParamExtInt<px4::params::EKF2_2_MAG_TYPE>) _param_ekf2_2_mag_type,
+		(ParamExtInt<px4::params::EKF2_3_MAG_TYPE>) _param_ekf2_3_mag_type,
+		(ParamExtInt<px4::params::EKF2_4_MAG_TYPE>) _param_ekf2_4_mag_type,
+		(ParamExtInt<px4::params::EKF2_5_MAG_TYPE>) _param_ekf2_5_mag_type,
+
+
 		(ParamExtFloat<px4::params::EKF2_MAG_ACCLIM>) _param_ekf2_mag_acclim,
 		(ParamExtInt<px4::params::EKF2_MAG_CHECK>) _param_ekf2_mag_check,
 		(ParamExtFloat<px4::params::EKF2_MAG_CHK_STR>) _param_ekf2_mag_chk_str,
@@ -597,6 +629,14 @@ private:
 #endif // CONFIG_EKF2_MAGNETOMETER
 
 		(ParamExtInt<px4::params::EKF2_HGT_REF>) _param_ekf2_hgt_ref,    ///< selects the primary source for height data
+
+		/// Dimitris
+		(ParamExtInt<px4::params::EKF2_0_HGT_REF>) _param_ekf2_0_hgt_ref,
+		(ParamExtInt<px4::params::EKF2_1_HGT_REF>) _param_ekf2_1_hgt_ref,
+		(ParamExtInt<px4::params::EKF2_2_HGT_REF>) _param_ekf2_2_hgt_ref,
+		(ParamExtInt<px4::params::EKF2_3_HGT_REF>) _param_ekf2_3_hgt_ref,
+		(ParamExtInt<px4::params::EKF2_4_HGT_REF>) _param_ekf2_4_hgt_ref,
+		(ParamExtInt<px4::params::EKF2_5_HGT_REF>) _param_ekf2_5_hgt_ref,
 
 		(ParamExtInt<px4::params::EKF2_NOAID_TOUT>)
 		_param_ekf2_noaid_tout,	///< maximum lapsed time from last fusion of measurements that constrain drift before the EKF will report the horizontal nav solution invalid (uSec)

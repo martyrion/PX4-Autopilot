@@ -1,0 +1,530 @@
+module_name: ekf2
+parameters:
+- group: RESEARCH
+  definitions:
+    EKF2_INST_NO:
+      description:
+        short: Number of EKF2 instances to create
+      type: int32
+      default: 1
+      min: 1
+      max: 6
+      reboot_required: true
+    EKF2_0_GPS_V_N:
+      description:
+        short: GNSS velocity noise for instance 0
+      type: float
+      default: 0.3
+      min: 0.01
+      max: 5.0
+      unit: m/s
+      decimal: 2
+    EKF2_1_GPS_V_N:
+      description:
+        short: GNSS velocity noise for instance 1
+      type: float
+      default: 0.3
+      min: 0.01
+      max: 5.0
+      unit: m/s
+      decimal: 2
+    EKF2_2_GPS_V_N:
+      description:
+        short: GNSS velocity noise for instance 2
+      type: float
+      default: 0.3
+      min: 0.01
+      max: 5.0
+      unit: m/s
+      decimal: 2
+    EKF2_3_GPS_V_N:
+      description:
+        short: GNSS velocity noise for instance 3
+      type: float
+      default: 0.3
+      min: 0.01
+      max: 5.0
+      unit: m/s
+      decimal: 2
+    EKF2_4_GPS_V_N:
+      description:
+        short: GNSS velocity noise for instance 4
+      type: float
+      default: 0.3
+      min: 0.01
+      max: 5.0
+      unit: m/s
+      decimal: 2
+    EKF2_5_GPS_V_N:
+      description:
+        short: GNSS velocity noise for instance 5
+      type: float
+      default: 0.3
+      min: 0.01
+      max: 5.0
+      unit: m/s
+      decimal: 2
+    EKF2_0_GPS_P_N:
+      description:
+        short: GNSS position noise for instance 0
+      type: float
+      default: 0.5
+      min: 0.01
+      max: 10.0
+      unit: m
+      decimal: 2
+    EKF2_1_GPS_P_N:
+      description:
+        short: GNSS position noise for instance 1
+      type: float
+      default: 0.5
+      min: 0.01
+      max: 10.0
+      unit: m
+      decimal: 2
+    EKF2_2_GPS_P_N:
+      description:
+        short: GNSS position noise for instance 2
+      type: float
+      default: 0.5
+      min: 0.01
+      max: 10.0
+      unit: m
+      decimal: 2
+    EKF2_3_GPS_P_N:
+      description:
+        short: GNSS position noise for instance 3
+      type: float
+      default: 0.5
+      min: 0.01
+      max: 10.0
+      unit: m
+      decimal: 2
+    EKF2_4_GPS_P_N:
+      description:
+        short: GNSS position noise for instance 4
+      type: float
+      default: 0.5
+      min: 0.01
+      max: 10.0
+      unit: m
+      decimal: 2
+    EKF2_5_GPS_P_N:
+      description:
+        short: GNSS position noise for instance 5
+      type: float
+      default: 0.5
+      min: 0.01
+      max: 10.0
+      unit: m
+      decimal: 2
+    EKF2_0_HGT_REF:
+      description:
+        short: Height reference source for instance 0
+      type: enum
+      values:
+        0: Barometric pressure
+        1: GPS
+        2: Range sensor
+        3: Vision
+      default: 1
+      reboot_required: true
+    EKF2_1_HGT_REF:
+      description:
+        short: Height reference source for instance 1
+      type: enum
+      values:
+        0: Barometric pressure
+        1: GPS
+        2: Range sensor
+        3: Vision
+      default: 1
+      reboot_required: true
+    EKF2_2_HGT_REF:
+      description:
+        short: Height reference source for instance 2
+      type: enum
+      values:
+        0: Barometric pressure
+        1: GPS
+        2: Range sensor
+        3: Vision
+      default: 1
+      reboot_required: true
+    EKF2_3_HGT_REF:
+      description:
+        short: Height reference source for instance 3
+      type: enum
+      values:
+        0: Barometric pressure
+        1: GPS
+        2: Range sensor
+        3: Vision
+      default: 1
+      reboot_required: true
+    EKF2_4_HGT_REF:
+      description:
+        short: Height reference source for instance 4
+      type: enum
+      values:
+        0: Barometric pressure
+        1: GPS
+        2: Range sensor
+        3: Vision
+      default: 1
+      reboot_required: true
+    EKF2_5_HGT_REF:
+      description:
+        short: Height reference source for instance 5
+      type: enum
+      values:
+        0: Barometric pressure
+        1: GPS
+        2: Range sensor
+        3: Vision
+      default: 1
+      reboot_required: true
+    EKF2_0_GPS_CTRL:
+      description:
+        short: GNSS sensor aiding for instance 0
+      type: bitmask
+      bit:
+        0: Lon/lat
+        1: Altitude
+        2: 3D velocity
+        3: Dual antenna heading
+      default: 7
+      min: 0
+      max: 15
+    EKF2_1_GPS_CTRL:
+      description:
+        short: GNSS sensor aiding for instance 1
+      type: bitmask
+      bit:
+        0: Lon/lat
+        1: Altitude
+        2: 3D velocity
+        3: Dual antenna heading
+      default: 7
+      min: 0
+      max: 15
+    EKF2_2_GPS_CTRL:
+      description:
+        short: GNSS sensor aiding for instance 2
+      type: bitmask
+      bit:
+        0: Lon/lat
+        1: Altitude
+        2: 3D velocity
+        3: Dual antenna heading
+      default: 7
+      min: 0
+      max: 15
+    EKF2_3_GPS_CTRL:
+      description:
+        short: GNSS sensor aiding for instance 3
+      type: bitmask
+      bit:
+        0: Lon/lat
+        1: Altitude
+        2: 3D velocity
+        3: Dual antenna heading
+      default: 7
+      min: 0
+      max: 15
+    EKF2_4_GPS_CTRL:
+      description:
+        short: GNSS sensor aiding for instance 4
+      type: bitmask
+      bit:
+        0: Lon/lat
+        1: Altitude
+        2: 3D velocity
+        3: Dual antenna heading
+      default: 7
+      min: 0
+      max: 15
+    EKF2_5_GPS_CTRL:
+      description:
+        short: GNSS sensor aiding for instance 5
+      type: bitmask
+      bit:
+        0: Lon/lat
+        1: Altitude
+        2: 3D velocity
+        3: Dual antenna heading
+      default: 7
+      min: 0
+      max: 15
+    EKF2_0_GPS_SRC:
+      description:
+        short: GPS data source for instance 0
+        long: |
+          0: Blended GPS
+          1: Raw GPS 1
+          2: Raw GPS 2
+          255: No GPS
+      type: int32
+      default: 0
+      min: 0
+      max: 255
+      reboot_required: true
+    EKF2_1_GPS_SRC:
+      description:
+        short: GPS data source for instance 1
+      type: int32
+      default: 1
+      min: 0
+      max: 255
+      reboot_required: true
+    EKF2_2_GPS_SRC:
+      description:
+        short: GPS data source for instance 2
+      type: int32
+      default: 0
+      min: 0
+      max: 255
+      reboot_required: true
+    EKF2_3_GPS_SRC:
+      description:
+        short: GPS data source for instance 3
+      type: int32
+      default: 2
+      min: 0
+      max: 255
+      reboot_required: true
+    EKF2_4_GPS_SRC:
+      description:
+        short: GPS data source for instance 4
+      type: int32
+      default: 1
+      min: 0
+      max: 255
+      reboot_required: true
+    EKF2_5_GPS_SRC:
+      description:
+        short: GPS data source for instance 5
+      type: int32
+      default: 2
+      min: 0
+      max: 255
+      reboot_required: true
+    EKF2_0_MAG_TYPE:
+      description:
+        short: Magnetometer fusion type for instance 0
+      type: enum
+      values:
+        0: Automatic
+        1: Magnetic heading
+        5: None
+        6: Init
+        10: Temp
+      default: 0
+      reboot_required: true
+    EKF2_1_MAG_TYPE:
+      description:
+        short: Magnetometer fusion type for instance 1
+      type: enum
+      values:
+        0: Automatic
+        1: Magnetic heading
+        5: None
+        6: Init
+        10: Temp
+      default: 0
+      reboot_required: true
+    EKF2_2_MAG_TYPE:
+      description:
+        short: Magnetometer fusion type for instance 2
+      type: enum
+      values:
+        0: Automatic
+        1: Magnetic heading
+        5: None
+        6: Init
+        10: Temp
+      default: 0
+      reboot_required: true
+    EKF2_3_MAG_TYPE:
+      description:
+        short: Magnetometer fusion type for instance 3
+      type: enum
+      values:
+        0: Automatic
+        1: Magnetic heading
+        5: None
+        6: Init
+        10: Temp
+      default: 0
+      reboot_required: true
+    EKF2_4_MAG_TYPE:
+      description:
+        short: Magnetometer fusion type for instance 4
+      type: enum
+      values:
+        0: Automatic
+        1: Magnetic heading
+        5: None
+        6: Init
+        10: Temp
+      default: 0
+      reboot_required: true
+    EKF2_5_MAG_TYPE:
+      description:
+        short: Magnetometer fusion type for instance 5
+      type: enum
+      values:
+        0: Automatic
+        1: Magnetic heading
+        5: None
+        6: Init
+        10: Temp
+      default: 0
+      reboot_required: true
+    EKF2_0_IMU:
+      description:
+        short: IMU selection for instance 0
+      type: int32
+      values:
+        0: IMU 0
+        1: IMU 1
+        2: IMU 2
+        3: IMU 3
+      default: 0
+      min: 0
+      max: 3
+    EKF2_0_MAG:
+      description:
+        short: MAG selection for instance 0
+      type: int32
+      values:
+        0: MAG 0
+        1: MAG 1
+        2: MAG 2
+      default: 0
+      min: 0
+      max: 2
+    EKF2_1_IMU:
+      description:
+        short: IMU selection for instance 1
+      type: int32
+      values:
+        0: IMU 0
+        1: IMU 1
+        2: IMU 2
+        3: IMU 3
+      default: 1
+      min: 0
+      max: 3
+    EKF2_1_MAG:
+      description:
+        short: MAG selection for instance 1
+      type: int32
+      values:
+        0: MAG 0
+        1: MAG 1
+        2: MAG 2
+      default: 0
+      min: 0
+      max: 2
+    EKF2_2_IMU:
+      description:
+        short: IMU selection for instance 2
+      type: int32
+      values:
+        0: IMU 0
+        1: IMU 1
+        2: IMU 2
+        3: IMU 3
+      default: 2
+      min: 0
+      max: 3
+    EKF2_2_MAG:
+      description:
+        short: MAG selection for instance 2
+      type: int32
+      values:
+        0: MAG 0
+        1: MAG 1
+        2: MAG 2
+      default: 0
+      min: 0
+      max: 2
+    EKF2_3_IMU:
+      description:
+        short: IMU selection for instance 3
+      type: int32
+      values:
+        0: IMU 0
+        1: IMU 1
+        2: IMU 2
+        3: IMU 3
+      default: 3
+      min: 0
+      max: 3
+    EKF2_3_MAG:
+      description:
+        short: MAG selection for instance 3
+      type: int32
+      values:
+        0: MAG 0
+        1: MAG 1
+        2: MAG 2
+      default: 0
+      min: 0
+      max: 2
+    EKF2_4_IMU:
+      description:
+        short: IMU selection for instance 4
+      type: int32
+      values:
+        0: IMU 0
+        1: IMU 1
+        2: IMU 2
+        3: IMU 3
+      default: 0
+      min: 0
+      max: 3
+    EKF2_4_MAG:
+      description:
+        short: MAG selection for instance 4
+      type: int32
+      values:
+        0: MAG 0
+        1: MAG 1
+        2: MAG 2
+      default: 0
+      min: 0
+      max: 2
+    EKF2_5_IMU:
+      description:
+        short: IMU selection for instance 5
+      type: int32
+      values:
+        0: IMU 0
+        1: IMU 1
+        2: IMU 2
+        3: IMU 3
+      default: 1
+      min: 0
+      max: 3
+    EKF2_5_MAG:
+      description:
+        short: MAG selection for instance 5
+      type: int32
+      values:
+        0: MAG 0
+        1: MAG 1
+        2: MAG 2
+      default: 1
+      min: 0
+      max: 2
+    EKF2_FORCE_INST:
+      description:
+        short: Force specific EKF2 instance selection
+        long: Forces the EKF2 selector to always use a specific instance as the primary estimator. Set to -1 to disable forced selection and use automatic selection based on health and performance metrics. Set to 0-5 to force a specific instance. When forced, automatic instance switching is disabled regardless of test ratios.
+      type: int32
+      min: -1
+      max: 5
+      default: -1
+      reboot_required: false

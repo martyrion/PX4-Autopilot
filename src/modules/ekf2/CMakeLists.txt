@@ -258,6 +258,9 @@ px4_add_module(
 		EKF2.hpp
 		EKF2Selector.cpp
 		EKF2Selector.hpp
+		EKF2Spawner.cpp # Dimitris: add EKF2Spawner
+		EKF2Spawner.hpp # Dimitris: add EKF2Spawner
+		EKF2CustomParams.cpp # Dimitris: add EKF2CustomParams
 
 		${EKF_GENERATED_FILES}
 
@@ -268,6 +271,7 @@ px4_add_module(
 		params_multi.yaml
 		params_volatile.yaml
 		params_selector.yaml
+		params_research.yaml # Dimitris: add research params
 		${EKF_MODULE_PARAMS}
 
 	DEPENDS

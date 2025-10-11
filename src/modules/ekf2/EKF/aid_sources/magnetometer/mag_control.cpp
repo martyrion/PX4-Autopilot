@@ -59,6 +59,53 @@ void Ekf::controlMagFusion(const imuSample &imu_sample)
 		return;
 	}
 
+
+	bool mag_temp_active = false; // tells rest of function to act like AUTO
+
+	if (_params.mag_fusion_type == MagFuseType::TEMP) {
+
+		static uint64_t airborne_start_time = 0;
+		static bool log_once = false;
+		static constexpr uint64_t TEMP_FUSION_DURATION_US = 5'000'000; // 5 seconds
+
+		if (!_control_status.flags.in_air) {
+			// Vehicle on ground: reset timer and logs
+			airborne_start_time = 0;
+			log_once = false;
+
+			// Behave like AUTO fusion on ground
+			mag_temp_active = true;
+
+			if (!log_once) {
+				ECL_INFO("MAG_TEMP: Mag fusion active until 3s after takeoff");
+				log_once = true;
+			}
+
+		} else {
+			// Vehicle is airborne
+			if (airborne_start_time == 0) {
+				// First detection of airborne
+				airborne_start_time = _time_delayed_us;
+				ECL_INFO("MAG_TEMP: Takeoff detected, countdown started");
+			}
+
+			// Keep fusing until TEMP_FUSION_DURATION_US has elapsed
+			if ((_time_delayed_us - airborne_start_time) < TEMP_FUSION_DURATION_US) {
+				mag_temp_active = true;
+
+			} else {
+				if (_control_status.flags.mag_3D || _control_status.flags.mag_hdg) {
+					ECL_INFO("MAG_TEMP: 3s after takeoff, stopping mag fusion");
+				}
+
+				stopMagFusion();
+				return;
+			}
+		}
+	}
+
+
+
 	magSample mag_sample;
 
 	if (_mag_buffer && _mag_buffer->pop_first_older_than(imu_sample.time_us, &mag_sample)) {
@@ -157,7 +204,8 @@ void Ekf::controlMagFusion(const imuSample &imu_sample)
 		// determine if we should use mag fusion
 		bool continuing_conditions_passing = ((_params.mag_fusion_type == MagFuseType::INIT)
 						      || (_params.mag_fusion_type == MagFuseType::AUTO)
-						      || (_params.mag_fusion_type == MagFuseType::HEADING))
+						      || (_params.mag_fusion_type == MagFuseType::HEADING)
+						      || mag_temp_active)  // Dimitris: treat TEMP as AUTO while active
 						     && _control_status.flags.tilt_align
 						     && (_control_status.flags.yaw_align || (!_control_status.flags.ev_yaw && !_control_status.flags.yaw_align))
 						     && mag_sample.mag.longerThan(0.f)
@@ -187,9 +235,10 @@ void Ekf::controlMagFusion(const imuSample &imu_sample)
 						       && (_params.mag_fusion_type == MagFuseType::AUTO)
 						       && _control_status.flags.mag_aligned_in_flight;
 
-			_control_status.flags.mag_hdg = common_conditions_passing
-							&& ((_params.mag_fusion_type == MagFuseType::HEADING)
-							    || (_params.mag_fusion_type == MagFuseType::AUTO && !_control_status.flags.mag_3D));
+			_control_status.flags.mag_hdg = common_conditions_passing /// Dimitris
+							&& (((_params.mag_fusion_type == MagFuseType::HEADING)
+							     || ((_params.mag_fusion_type == MagFuseType::AUTO || mag_temp_active) && !_control_status.flags.mag_3D)));
+
 		}
 
 		// TODO: allow clearing mag_fault if mag_3d is good?

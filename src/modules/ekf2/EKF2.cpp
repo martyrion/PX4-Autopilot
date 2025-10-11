@@ -33,6 +33,7 @@
 
 #include <px4_platform_common/events.h>
 #include "EKF2.hpp"
+#include "EKF2Spawner.hpp"
 
 using namespace time_literals;
 using math::constrain;
@@ -80,6 +81,15 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_noaid_noise(_params->pos_noaid_noise),
 #if defined(CONFIG_EKF2_GNSS)
 	_param_ekf2_gps_ctrl(_params->gnss_ctrl),
+
+	// Dimitris
+	_param_ekf2_0_gps_ctrl(_params->gnss_ctrl),
+	_param_ekf2_1_gps_ctrl(_params->gnss_ctrl_r1),
+	_param_ekf2_2_gps_ctrl(_params->gnss_ctrl_r2),
+	_param_ekf2_3_gps_ctrl(_params->gnss_ctrl_r3),
+	_param_ekf2_4_gps_ctrl(_params->gnss_ctrl_r4),
+	_param_ekf2_5_gps_ctrl(_params->gnss_ctrl_r5),
+
 	_param_ekf2_gps_delay(_params->gps_delay_ms),
 	_param_ekf2_gps_pos_x(_params->gps_pos_body(0)),
 	_param_ekf2_gps_pos_y(_params->gps_pos_body(1)),
@@ -136,6 +146,15 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_mag_gate(_params->mag_innov_gate),
 	_param_ekf2_decl_type(_params->mag_declination_source),
 	_param_ekf2_mag_type(_params->mag_fusion_type),
+
+	// Dimitris
+	_param_ekf2_0_mag_type(_params->mag_fusion_type),
+	_param_ekf2_1_mag_type(_params->mag_fusion_type_r1),
+	_param_ekf2_2_mag_type(_params->mag_fusion_type_r2),
+	_param_ekf2_3_mag_type(_params->mag_fusion_type_r3),
+	_param_ekf2_4_mag_type(_params->mag_fusion_type_r4),
+	_param_ekf2_5_mag_type(_params->mag_fusion_type_r5),
+
 	_param_ekf2_mag_acclim(_params->mag_acc_gate),
 	_param_ekf2_mag_check(_params->mag_check),
 	_param_ekf2_mag_chk_str(_params->mag_check_strength_tolerance_gs),
@@ -143,6 +162,15 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_synthetic_mag_z(_params->synthesize_mag_z),
 #endif // CONFIG_EKF2_MAGNETOMETER
 	_param_ekf2_hgt_ref(_params->height_sensor_ref),
+
+	// Dimitris
+	_param_ekf2_0_hgt_ref(_params->height_sensor_ref),
+	_param_ekf2_1_hgt_ref(_params->height_sensor_ref_r1),
+	_param_ekf2_2_hgt_ref(_params->height_sensor_ref_r2),
+	_param_ekf2_3_hgt_ref(_params->height_sensor_ref_r3),
+	_param_ekf2_4_hgt_ref(_params->height_sensor_ref_r4),
+	_param_ekf2_5_hgt_ref(_params->height_sensor_ref_r5),
+
 	_param_ekf2_noaid_tout(_params->valid_timeout_max),
 #if defined(CONFIG_EKF2_TERRAIN) || defined(CONFIG_EKF2_OPTICAL_FLOW) || defined(CONFIG_EKF2_RANGE_FINDER)
 	_param_ekf2_min_rng(_params->rng_gnd_clearance),
@@ -448,6 +476,8 @@ void EKF2::Run()
 
 		// update parameters from storage
 		updateParams();
+
+		applyCustomParameters(); // Dimitris: apply custom parameters
 
 		VerifyParams();
 
@@ -854,6 +884,7 @@ void EKF2::VerifyParams()
 	    && (_param_ekf2_mag_type.get() != MagFuseType::HEADING)
 	    && (_param_ekf2_mag_type.get() != MagFuseType::NONE)
 	    && (_param_ekf2_mag_type.get() != MagFuseType::INIT)
+	    && (_param_ekf2_mag_type.get() != MagFuseType::TEMP) /// Dimitris
 	   ) {
 
 		mavlink_log_critical(&_mavlink_log_pub, "EKF2_MAG_TYPE invalid, resetting to default");
@@ -1856,6 +1887,8 @@ void EKF2::PublishStatus(const hrt_abstime &timestamp)
 			    status.mag_strength_ref_gs);
 #endif // CONFIG_EKF2_MAGNETOMETER
 
+
+	status.gps_src = _gps_src; // <-- assign the GPS source
 	status.timestamp = _replay_mode ? timestamp : hrt_absolute_time();
 	_estimator_status_pub.publish(status);
 }
@@ -2401,70 +2434,139 @@ bool EKF2::UpdateFlowSample(ekf2_timestamps_s &ekf2_timestamps)
 #if defined(CONFIG_EKF2_GNSS)
 void EKF2::UpdateGpsSample(ekf2_timestamps_s &ekf2_timestamps)
 {
-	// EKF GPS message
 	sensor_gps_s vehicle_gps_position;
+	bool updated = false;
 
-	if (_vehicle_gps_position_sub.update(&vehicle_gps_position)) {
+	// Get the GPS source parameter for this instance
+	int32_t gps_src_param = 0;
 
-		Vector3f vel_ned;
+	switch (_instance) {
+	case 0:
+		gps_src_param = _param_ekf2_0_gps_src.get();
+		break;
 
-		if (vehicle_gps_position.vel_ned_valid) {
-			vel_ned = Vector3f(vehicle_gps_position.vel_n_m_s,
-					   vehicle_gps_position.vel_e_m_s,
-					   vehicle_gps_position.vel_d_m_s);
+	case 1:
+		gps_src_param = _param_ekf2_1_gps_src.get();
+		break;
+
+	case 2:
+		gps_src_param = _param_ekf2_2_gps_src.get();
+		break;
+
+	case 3:
+		gps_src_param = _param_ekf2_3_gps_src.get();
+		break;
+
+	case 4:
+		gps_src_param = _param_ekf2_4_gps_src.get();
+		break;
+
+	case 5:
+		gps_src_param = _param_ekf2_5_gps_src.get();
+		break;
+
+	default:
+		// For instances beyond 5, use blended GPS as default
+		gps_src_param = 0;
+		break;
+	}
+
+	// Handle based on parameter value
+	if (gps_src_param == 0) {
+		// Use default blended GPS
+		updated = _vehicle_gps_position_sub.update(&vehicle_gps_position);
+		_gps_src = 0;
+
+	} else if (gps_src_param >= 1 && gps_src_param <= 2) {
+		// Use raw GPS at specified index (1 = first raw GPS at index 0, 2 = second raw GPS at index 1)
+		int raw_gps_index = gps_src_param - 1;
+
+		if (_vehicle_gps_position_raw_subs.size() > static_cast<size_t>(raw_gps_index)) {
+			updated = _vehicle_gps_position_raw_subs[raw_gps_index].update(&vehicle_gps_position);
+			_gps_src = gps_src_param;
 
 		} else {
-			return; //TODO: change and set to NAN
+			PX4_WARN("EKF2 instance %d: Raw GPS source %" PRId32 " (index %d) not available, only %zu GPS available",
+				 _instance, gps_src_param, raw_gps_index, _vehicle_gps_position_raw_subs.size());
+			return;
 		}
 
-		if (fabsf(_param_ekf2_gps_yaw_off.get()) > 0.f) {
-			if (!PX4_ISFINITE(vehicle_gps_position.heading_offset) && PX4_ISFINITE(vehicle_gps_position.heading)) {
-				// Apply offset
-				float yaw_offset = matrix::wrap_pi(math::radians(_param_ekf2_gps_yaw_off.get()));
-				vehicle_gps_position.heading_offset = yaw_offset;
-				vehicle_gps_position.heading = matrix::wrap_pi(vehicle_gps_position.heading - yaw_offset);
-			}
-		}
+	} else if (gps_src_param == 255) {
+		// No GPS - disabled
+		_gps_src = 255;
+		return;
 
-		const float altitude_amsl = static_cast<float>(vehicle_gps_position.altitude_msl_m);
-		const float altitude_ellipsoid = static_cast<float>(vehicle_gps_position.altitude_ellipsoid_m);
-
-		gnssSample gnss_sample{
-			.time_us = vehicle_gps_position.timestamp,
-			.lat = vehicle_gps_position.latitude_deg,
-			.lon = vehicle_gps_position.longitude_deg,
-			.alt = altitude_amsl,
-			.vel = vel_ned,
-			.hacc = vehicle_gps_position.eph,
-			.vacc = vehicle_gps_position.epv,
-			.sacc = vehicle_gps_position.s_variance_m_s,
-			.fix_type = vehicle_gps_position.fix_type,
-			.nsats = vehicle_gps_position.satellites_used,
-			.pdop = sqrtf(vehicle_gps_position.hdop *vehicle_gps_position.hdop
-				      + vehicle_gps_position.vdop * vehicle_gps_position.vdop),
-			.yaw = vehicle_gps_position.heading, //TODO: move to different message
-			.yaw_acc = vehicle_gps_position.heading_accuracy,
-			.yaw_offset = vehicle_gps_position.heading_offset,
-			.spoofed = vehicle_gps_position.spoofing_state == sensor_gps_s::SPOOFING_STATE_MULTIPLE,
-		};
-
-		_ekf.setGpsData(gnss_sample);
-
-		const float geoid_height = altitude_ellipsoid - altitude_amsl;
-
-		if (_last_geoid_height_update_us == 0) {
-			_geoid_height_lpf.reset(geoid_height);
-			_last_geoid_height_update_us = gnss_sample.time_us;
-
-		} else if (gnss_sample.time_us > _last_geoid_height_update_us) {
-			const float dt = 1e-6f * (gnss_sample.time_us - _last_geoid_height_update_us);
-			_geoid_height_lpf.setParameters(dt, kGeoidHeightLpfTimeConstant);
-			_geoid_height_lpf.update(geoid_height);
-			_last_geoid_height_update_us = gnss_sample.time_us;
-		}
-
+	} else {
+		// Invalid parameter value, use blended GPS as fallback
+		PX4_WARN("EKF2 instance %d: Invalid GPS source parameter %" PRId32 ", using blended GPS",
+			 _instance, gps_src_param);
+		updated = _vehicle_gps_position_sub.update(&vehicle_gps_position);
+		_gps_src = 0;
 	}
+
+	if (!updated) {
+		return; // No GPS update available
+	}
+
+	Vector3f vel_ned;
+
+	if (vehicle_gps_position.vel_ned_valid) {
+		vel_ned = Vector3f(vehicle_gps_position.vel_n_m_s,
+				   vehicle_gps_position.vel_e_m_s,
+				   vehicle_gps_position.vel_d_m_s);
+
+	} else {
+		return; //TODO: change and set to NAN
+	}
+
+	if (fabsf(_param_ekf2_gps_yaw_off.get()) > 0.f) {
+		if (!PX4_ISFINITE(vehicle_gps_position.heading_offset) && PX4_ISFINITE(vehicle_gps_position.heading)) {
+			// Apply offset
+			float yaw_offset = matrix::wrap_pi(math::radians(_param_ekf2_gps_yaw_off.get()));
+			vehicle_gps_position.heading_offset = yaw_offset;
+			vehicle_gps_position.heading = matrix::wrap_pi(vehicle_gps_position.heading - yaw_offset);
+		}
+	}
+
+	const float altitude_amsl = static_cast<float>(vehicle_gps_position.altitude_msl_m);
+	const float altitude_ellipsoid = static_cast<float>(vehicle_gps_position.altitude_ellipsoid_m);
+
+	gnssSample gnss_sample{
+		.time_us = vehicle_gps_position.timestamp,
+		.lat = vehicle_gps_position.latitude_deg,
+		.lon = vehicle_gps_position.longitude_deg,
+		.alt = altitude_amsl,
+		.vel = vel_ned,
+		.hacc = vehicle_gps_position.eph,
+		.vacc = vehicle_gps_position.epv,
+		.sacc = vehicle_gps_position.s_variance_m_s,
+		.fix_type = vehicle_gps_position.fix_type,
+		.nsats = vehicle_gps_position.satellites_used,
+		.pdop = sqrtf(vehicle_gps_position.hdop *vehicle_gps_position.hdop
+			      + vehicle_gps_position.vdop * vehicle_gps_position.vdop),
+		.yaw = vehicle_gps_position.heading, //TODO: move to different message
+		.yaw_acc = vehicle_gps_position.heading_accuracy,
+		.yaw_offset = vehicle_gps_position.heading_offset,
+		.spoofed = vehicle_gps_position.spoofing_state == sensor_gps_s::SPOOFING_STATE_MULTIPLE,
+	};
+
+	_ekf.setGpsData(gnss_sample);
+
+	const float geoid_height = altitude_ellipsoid - altitude_amsl;
+
+	if (_last_geoid_height_update_us == 0) {
+		_geoid_height_lpf.reset(geoid_height);
+		_last_geoid_height_update_us = gnss_sample.time_us;
+
+	} else if (gnss_sample.time_us > _last_geoid_height_update_us) {
+		const float dt = 1e-6f * (gnss_sample.time_us - _last_geoid_height_update_us);
+		_geoid_height_lpf.setParameters(dt, kGeoidHeightLpfTimeConstant);
+		_geoid_height_lpf.update(geoid_height);
+		_last_geoid_height_update_us = gnss_sample.time_us;
+	}
+
 }
+
 
 float EKF2::altEllipsoidToAmsl(float ellipsoid_alt) const
 {
@@ -2747,174 +2849,15 @@ int EKF2::custom_command(int argc, char *argv[])
 	return print_usage("unknown command");
 }
 
+
 int EKF2::task_spawn(int argc, char *argv[])
 {
-	bool success = false;
-	bool replay_mode = false;
-
-	if (argc > 1 && !strcmp(argv[1], "-r")) {
-		PX4_INFO("replay mode enabled");
-		replay_mode = true;
-	}
-
+	// Delegate spawning logic to EKF2Spawner
+	return EKF2Spawner::spawn(argc, argv, _objects
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
-	bool multi_mode = false;
-	int32_t imu_instances = 0;
-	int32_t mag_instances = 0;
-
-	int32_t sens_imu_mode = 1;
-	param_get(param_find("SENS_IMU_MODE"), &sens_imu_mode);
-
-	if (sens_imu_mode == 0) {
-		// ekf selector requires SENS_IMU_MODE = 0
-		multi_mode = true;
-
-		// IMUs (1 - MAX_NUM_IMUS supported)
-		param_get(param_find("EKF2_MULTI_IMU"), &imu_instances);
-
-		if (imu_instances < 1 || imu_instances > MAX_NUM_IMUS) {
-			const int32_t imu_instances_limited = math::constrain(imu_instances, static_cast<int32_t>(1),
-							      static_cast<int32_t>(MAX_NUM_IMUS));
-			PX4_WARN("EKF2_MULTI_IMU limited %" PRId32 " -> %" PRId32, imu_instances, imu_instances_limited);
-			param_set_no_notification(param_find("EKF2_MULTI_IMU"), &imu_instances_limited);
-			imu_instances = imu_instances_limited;
-		}
-
-#if defined(CONFIG_EKF2_MAGNETOMETER)
-		int32_t sens_mag_mode = 1;
-		const param_t param_sens_mag_mode = param_find("SENS_MAG_MODE");
-		param_get(param_sens_mag_mode, &sens_mag_mode);
-
-		if (sens_mag_mode == 0) {
-			const param_t param_ekf2_mult_mag = param_find("EKF2_MULTI_MAG");
-			param_get(param_ekf2_mult_mag, &mag_instances);
-
-			// Mags (1 - MAX_NUM_MAGS supported)
-			if (mag_instances > MAX_NUM_MAGS) {
-				const int32_t mag_instances_limited = math::constrain(mag_instances, static_cast<int32_t>(1),
-								      static_cast<int32_t>(MAX_NUM_MAGS));
-				PX4_WARN("EKF2_MULTI_MAG limited %" PRId32 " -> %" PRId32, mag_instances, mag_instances_limited);
-				param_set_no_notification(param_ekf2_mult_mag, &mag_instances_limited);
-				mag_instances = mag_instances_limited;
-
-			} else if (mag_instances <= 1) {
-				// properly disable multi-magnetometer at sensors hub level
-				PX4_WARN("EKF2_MULTI_MAG disabled, resetting SENS_MAG_MODE");
-
-				// re-enable at sensors level
-				sens_mag_mode = 1;
-				param_set(param_sens_mag_mode, &sens_mag_mode);
-
-				mag_instances = 1;
-			}
-
-		} else {
-			mag_instances = 1;
-		}
-
-#endif // CONFIG_EKF2_MAGNETOMETER
-	}
-
-	if (multi_mode && !replay_mode) {
-		// Start EKF2Selector if it's not already running
-		if (_ekf2_selector.load() == nullptr) {
-			EKF2Selector *inst = new EKF2Selector();
-
-			if (inst) {
-				_ekf2_selector.store(inst);
-
-			} else {
-				PX4_ERR("Failed to create EKF2 selector");
-				return PX4_ERROR;
-			}
-		}
-
-		const hrt_abstime time_started = hrt_absolute_time();
-		const int multi_instances = math::min(imu_instances * mag_instances, static_cast<int32_t>(EKF2_MAX_INSTANCES));
-		int multi_instances_allocated = 0;
-
-		// allocate EKF2 instances until all found or arming
-		uORB::SubscriptionData<vehicle_status_s> vehicle_status_sub{ORB_ID(vehicle_status)};
-
-		bool ekf2_instance_created[MAX_NUM_IMUS][MAX_NUM_MAGS] {}; // IMUs * mags
-
-		while ((multi_instances_allocated < multi_instances)
-		       && (vehicle_status_sub.get().arming_state != vehicle_status_s::ARMING_STATE_ARMED)
-		       && ((hrt_elapsed_time(&time_started) < 30_s)
-			   || (vehicle_status_sub.get().hil_state == vehicle_status_s::HIL_STATE_ON))) {
-
-			vehicle_status_sub.update();
-
-			for (uint8_t mag = 0; mag < mag_instances; mag++) {
-				uORB::SubscriptionData<vehicle_magnetometer_s> vehicle_mag_sub{ORB_ID(vehicle_magnetometer), mag};
-
-				for (uint8_t imu = 0; imu < imu_instances; imu++) {
-
-					uORB::SubscriptionData<vehicle_imu_s> vehicle_imu_sub{ORB_ID(vehicle_imu), imu};
-					vehicle_mag_sub.update();
-
-					// Mag & IMU data must be valid, first mag can be ignored initially
-					if ((vehicle_mag_sub.advertised() || mag == 0) && (vehicle_imu_sub.advertised())) {
-
-						if (!ekf2_instance_created[imu][mag]) {
-							EKF2 *ekf2_inst = new EKF2(true, px4::ins_instance_to_wq(imu), false);
-
-							if (ekf2_inst && ekf2_inst->multi_init(imu, mag)) {
-								int actual_instance = ekf2_inst->instance(); // match uORB instance numbering
-
-								if ((actual_instance >= 0) && (_objects[actual_instance].load() == nullptr)) {
-									_objects[actual_instance].store(ekf2_inst);
-									success = true;
-									multi_instances_allocated++;
-									ekf2_instance_created[imu][mag] = true;
-
-									PX4_DEBUG("starting instance %d, IMU:%" PRIu8 " (%" PRIu32 "), MAG:%" PRIu8 " (%" PRIu32 ")", actual_instance,
-										  imu, vehicle_imu_sub.get().accel_device_id,
-										  mag, vehicle_mag_sub.get().device_id);
-
-									_ekf2_selector.load()->ScheduleNow();
-
-								} else {
-									PX4_ERR("instance numbering problem instance: %d", actual_instance);
-									delete ekf2_inst;
-									break;
-								}
-
-							} else {
-								PX4_ERR("alloc and init failed imu: %" PRIu8 " mag:%" PRIu8, imu, mag);
-								px4_usleep(100000);
-								break;
-							}
-						}
-
-					} else {
-						px4_usleep(1000); // give the sensors extra time to start
-						break;
-					}
-				}
-			}
-
-			if (multi_instances_allocated < multi_instances) {
-				px4_usleep(10000);
-			}
-		}
-
-	} else
-
-#endif // CONFIG_EKF2_MULTI_INSTANCE
-
-	{
-		// otherwise launch regular
-		EKF2 *ekf2_inst = new EKF2(false, px4::wq_configurations::INS0, replay_mode);
-
-		if (ekf2_inst) {
-			_objects[0].store(ekf2_inst);
-			ekf2_inst->ScheduleNow();
-			success = true;
-		}
-	}
-
-	return success ? PX4_OK : PX4_ERROR;
+				  , _ekf2_selector
+#endif
+				 );
 }
 
 int EKF2::print_usage(const char *reason)

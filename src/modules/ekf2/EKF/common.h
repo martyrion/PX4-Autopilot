@@ -110,7 +110,8 @@ enum MagFuseType : uint8_t {
 	AUTO    = 0,   	///< The selection of either heading or 3D magnetometer fusion will be automatic
 	HEADING = 1,   	///< Simple yaw angle fusion will always be used. This is less accurate, but less affected by earth field distortions. It should not be used for pitch angles outside the range from -60 to +60 deg
 	NONE    = 5,   	///< Do not use magnetometer under any circumstance.
-	INIT    = 6     ///< Use the mag for heading initialization only.
+	INIT    = 6,     ///< Use the mag for heading initialization only.
+	TEMP    = 10,	///< Like auto but for limited time.
 };
 #endif // CONFIG_EKF2_MAGNETOMETER
 
@@ -274,6 +275,16 @@ struct parameters {
 
 	// measurement source control
 	int32_t height_sensor_ref{static_cast<int32_t>(HeightSensor::BARO)};
+
+	/// Dimitris
+
+	int32_t height_sensor_ref_r1{static_cast<int32_t>(HeightSensor::BARO)};
+	int32_t height_sensor_ref_r2{static_cast<int32_t>(HeightSensor::BARO)};
+	int32_t height_sensor_ref_r3{static_cast<int32_t>(HeightSensor::BARO)};
+	int32_t height_sensor_ref_r4{static_cast<int32_t>(HeightSensor::BARO)};
+	int32_t height_sensor_ref_r5{static_cast<int32_t>(HeightSensor::BARO)};
+
+
 	int32_t position_sensor_ref{static_cast<int32_t>(PositionSensor::GNSS)};
 
 	float delay_max_ms{110.f};              ///< maximum time delay of all the aiding sensors. Sets the size of the observation buffers. (mSec)
@@ -322,6 +333,15 @@ struct parameters {
 
 #if defined(CONFIG_EKF2_GNSS)
 	int32_t gnss_ctrl {static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)};
+
+	/// Dimitris
+	int32_t gnss_ctrl_r1 {static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)};
+	int32_t gnss_ctrl_r2 {static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)};
+	int32_t gnss_ctrl_r3 {static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)};
+	int32_t gnss_ctrl_r4 {static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)};
+	int32_t gnss_ctrl_r5 {static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)};
+
+
 	float gps_delay_ms{110.0f};             ///< GPS measurement delay relative to the IMU (mSec)
 
 	Vector3f gps_pos_body{};                ///< xyz position of the GPS antenna in body frame (m)
@@ -373,6 +393,14 @@ struct parameters {
 	float mag_innov_gate{3.0f};             ///< magnetometer fusion innovation consistency gate size (STD)
 	int32_t mag_declination_source{3};      ///< bitmask used to control the handling of declination data
 	int32_t mag_fusion_type{0};             ///< integer used to specify the type of magnetometer fusion used
+
+	/// Dimitris
+	int32_t mag_fusion_type_r1{0};
+	int32_t mag_fusion_type_r2{0};
+	int32_t mag_fusion_type_r3{0};
+	int32_t mag_fusion_type_r4{0};
+	int32_t mag_fusion_type_r5{0};
+
 	float mag_acc_gate{0.5f};               ///< when in auto select mode, heading fusion will be used when manoeuvre accel is lower than this (m/sec**2)
 
 	// compute synthetic magnetomter Z value if possible
