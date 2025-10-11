@@ -41,6 +41,7 @@
 #include <px4_platform_common/px4_config.h>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
 #include <uORB/Publication.hpp>
+#include <uORB/PublicationMulti.hpp>
 #include <uORB/Subscription.hpp>
 #include <uORB/SubscriptionCallback.hpp>
 #include <uORB/topics/parameter_update.h>
@@ -87,6 +88,13 @@ private:
 		{this, ORB_ID(sensor_gps), 0},
 		{this, ORB_ID(sensor_gps), 1},
 	};
+
+	// New array for multi-instance GPS publication
+	uORB::PublicationMulti<sensor_gps_s> _vehicle_gps_position_raw_pub[GPS_MAX_RECEIVERS] {
+		{ORB_ID(vehicle_gps_position_raw)},  // instance 0
+		{ORB_ID(vehicle_gps_position_raw)}   // instance 1
+	};
+
 
 	perf_counter_t _cycle_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};
 
