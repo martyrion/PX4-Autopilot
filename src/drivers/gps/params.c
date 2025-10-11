@@ -276,3 +276,34 @@ PARAM_DEFINE_INT32(GPS_1_GNSS, 0);
  * @group GPS
  */
 PARAM_DEFINE_INT32(GPS_2_GNSS, 0);
+
+/**
+ * GPS Rover Update Rate
+ *
+ * Controls the update rate for rover position, velocity, and heading data when operating
+ * in RTK or heading modes. This parameter allows optimization of data flow rates for
+ * different applications and telemetry link capabilities.
+ *
+ * Higher rates provide more frequent updates for improved EKF performance and smoother
+ * flight control, but require more telemetry bandwidth. Lower rates reduce bandwidth
+ * requirements but may impact navigation performance.
+ *
+ * This setting applies when the GPS is configured in rover mode (receiving RTCM corrections)
+ * or dual-antenna heading mode. It affects the rate at which position, velocity, and
+ * heading solutions are computed and published.
+ *
+ * Note: The actual achievable rate may be limited by RTCM correction availability,
+ * processing capabilities, or telemetry link constraints.
+ *
+ * @min 1
+ * @max 20
+ * @value 1 1Hz - Minimal bandwidth, basic navigation
+ * @value 5 5Hz - Low bandwidth, acceptable for most applications
+ * @value 8 5Hz - Low bandwidth, slightly better
+ * @value 10 10Hz - Standard rate, good balance of performance and bandwidth
+ * @value 20 20Hz - High performance, requires good telemetry link
+ * @unit Hz
+ * @reboot_required true
+ * @group RESEARCH
+ */
+PARAM_DEFINE_INT32(GPS_NMEA_RATE, 20);
