@@ -122,3 +122,6 @@ float32 mag_inclination_deg
 float32 mag_inclination_ref_deg
 float32 mag_strength_gs
 float32 mag_strength_ref_gs
+
+uint8 gps_src  # vehicle_gps_position instance
+
